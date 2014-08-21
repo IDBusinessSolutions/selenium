@@ -45,14 +45,14 @@ class WebDriver(RemoteWebDriver):
     NATIVE_EVENTS_ALLOWED = sys.platform != "darwin"
 
     def __init__(self, firefox_profile=None, firefox_binary=None, timeout=30,
-                 capabilities=None, proxy=None, executable_path="wires", firefox_options=None):
+                 capabilities=None, proxy=None, executable_path="wires", firefox_options=None, env=None):
         capabilities = capabilities or DesiredCapabilities.FIREFOX.copy()
 
         self.profile = firefox_profile or FirefoxProfile()
         self.profile.native_events_enabled = (
             self.NATIVE_EVENTS_ALLOWED and self.profile.native_events_enabled)
 
-        self.binary = firefox_binary or capabilities.get("binary", FirefoxBinary())
+        self.binary = firefox_binary or capabilities.get("binary", FirefoxBinary(env=env))
 
         self.options = firefox_options or Options()
         self.options.binary_location = self.binary if isinstance(self.binary, basestring) else self.binary._start_cmd
@@ -61,7 +61,7 @@ class WebDriver(RemoteWebDriver):
 
         # marionette
         if capabilities.get("marionette"):
-            self.service = Service(executable_path, firefox_binary=self.options.binary_location)
+            self.service = Service(executable_path, firefox_binary=self.options.binary_location,)
             self.service.start()
 
             executor = FirefoxRemoteConnection(

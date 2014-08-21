@@ -28,7 +28,7 @@ class FirefoxBinary(object):
 
     NO_FOCUS_LIBRARY_NAME = "x_ignore_nofocus.so"
 
-    def __init__(self, firefox_path=None, log_file=None):
+    def __init__(self, firefox_path=None, log_file=None, env=None):
         """
         Creates a new instance of Firefox binary.
 
@@ -50,7 +50,10 @@ class FirefoxBinary(object):
                             "binary = FirefoxBinary('/path/to/binary')\ndriver = webdriver.Firefox(firefox_binary=binary)")
         # Rather than modifying the environment of the calling Python process
         # copy it and modify as needed.
-        self._firefox_env = os.environ.copy()
+        if env:
+            self._firefox_env = env
+        else:
+            self._firefox_env = os.environ.copy()
         self._firefox_env["MOZ_CRASHREPORTER_DISABLE"] = "1"
         self._firefox_env["MOZ_NO_REMOTE"] = "1"
         self._firefox_env["NO_EM_RESTART"] = "1"

@@ -23,7 +23,7 @@ class Service(service.Service):
     Object that manages the starting and stopping of the IEDriver
     """
 
-    def __init__(self, executable_path, port=0, host=None, log_level=None, log_file=None):
+    def __init__(self, executable_path, port=0, host=None, log_level=None, log_file=None, env=None):
         """
         Creates a new instance of the Service
 
@@ -43,7 +43,7 @@ class Service(service.Service):
         if log_file is not None:
             self.service_args.append("--log-file=%s" % log_file)
 
-        service.Service.__init__(self, executable_path, port=port,
+        service.Service.__init__(self, executable_path, port=port, env=env,
                                  start_error_message="Please download from http://selenium-release.storage.googleapis.com/index.html and read up at https://github.com/SeleniumHQ/selenium/wiki/InternetExplorerDriver")
 
     def command_line_args(self):
