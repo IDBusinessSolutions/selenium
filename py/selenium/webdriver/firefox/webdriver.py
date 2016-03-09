@@ -61,7 +61,7 @@ class WebDriver(RemoteWebDriver):
 
         # marionette
         if capabilities.get("marionette"):
-            self.service = Service(executable_path, firefox_binary=self.options.binary_location,)
+            self.service = Service(executable_path, firefox_binary=self.options.binary_location, env=None)
             self.service.start()
 
             executor = FirefoxRemoteConnection(

@@ -44,9 +44,10 @@ class WebDriver(RemoteWebDriver):
             port=self.port,
             host=self.host,
             log_level=self.log_level,
-            log_file=self.log_file)
+            log_file=self.log_file,
+            env=env)
 
-        self.iedriver.start(env)
+        self.iedriver.start()
 
         if capabilities is None:
             capabilities = DesiredCapabilities.INTERNETEXPLORER

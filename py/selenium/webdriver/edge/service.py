@@ -20,8 +20,8 @@ from selenium.webdriver.common import service
 
 
 class Service(service.Service):
-    def __init__(self, executable_path, port=0, log_file=PIPE):
-        service.Service.__init__(self, executable_path, port=port, log_file=log_file,
+    def __init__(self, executable_path, port=0, log_file=PIPE, env=None):
+        service.Service.__init__(self, executable_path, port=port, log_file=log_file, env=env,
                                  start_error_message="Please download from http://go.microsoft.com/fwlink/?LinkId=619687 ")
 
     def command_line_args(self):
