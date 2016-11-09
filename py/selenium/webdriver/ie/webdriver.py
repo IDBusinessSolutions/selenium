@@ -31,7 +31,7 @@ class WebDriver(RemoteWebDriver):
 
     def __init__(self, executable_path='IEDriverServer.exe', capabilities=None,
                  port=DEFAULT_PORT, timeout=DEFAULT_TIMEOUT, host=DEFAULT_HOST,
-                 log_level=DEFAULT_LOG_LEVEL, log_file=DEFAULT_LOG_FILE):
+                 log_level=DEFAULT_LOG_LEVEL, log_file=DEFAULT_LOG_FILE, env=None):
         self.port = port
         if self.port == 0:
             self.port = utils.free_port()
@@ -44,7 +44,8 @@ class WebDriver(RemoteWebDriver):
             port=self.port,
             host=self.host,
             log_level=self.log_level,
-            log_file=self.log_file)
+            log_file=self.log_file,
+            env=env)
 
         self.iedriver.start()
 

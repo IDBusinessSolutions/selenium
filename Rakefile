@@ -387,6 +387,11 @@ task :py_release => :py_prep_for_install_release do
     sh "git checkout setup.py"
 end
 
+task :py_package => :py_prep_for_install_release do
+    sh "python setup.py sdist"
+end
+
+
 file "cpp/iedriver/sizzle.h" => [ "//third_party/js/sizzle:sizzle:header" ] do
   cp "build/third_party/js/sizzle/sizzle.h", "cpp/iedriver/sizzle.h"
 end
