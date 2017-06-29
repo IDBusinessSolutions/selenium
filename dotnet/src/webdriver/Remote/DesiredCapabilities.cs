@@ -16,6 +16,7 @@
 // limitations under the License.
 // </copyright>
 
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 
@@ -141,6 +142,7 @@ namespace OpenQA.Selenium.Remote
         /// <summary>
         /// Gets or sets a value indicating whether the browser is JavaScript enabled
         /// </summary>
+        [Obsolete("Capability is not allowed by the W3C specification, and will be removed in a future version of the bindings.")]
         public bool IsJavaScriptEnabled
         {
             get
@@ -162,6 +164,29 @@ namespace OpenQA.Selenium.Remote
         }
 
         /// <summary>
+        /// Gets or sets a value indicating whether the browser accepts SSL certificates.
+        /// </summary>
+        public bool AcceptInsecureCerts
+        {
+            get
+            {
+              bool acceptSSLCerts = false;
+              object capabilityValue = this.GetCapability(CapabilityType.AcceptInsecureCertificates);
+              if (capabilityValue != null)
+              {
+                acceptSSLCerts = (bool)capabilityValue;
+              }
+
+              return acceptSSLCerts;
+            }
+
+            set
+            {
+                this.SetCapability(CapabilityType.AcceptInsecureCertificates, value);
+            }
+        }
+
+        /// <summary>
         /// Gets the internal capabilities dictionary.
         /// </summary>
         internal Dictionary<string, object> CapabilitiesDictionary
@@ -175,7 +200,9 @@ namespace OpenQA.Selenium.Remote
         /// <returns>New instance of DesiredCapabilities for use with Firefox</returns>
         public static DesiredCapabilities Firefox()
         {
-            return new DesiredCapabilities("firefox", string.Empty, new Platform(PlatformType.Any));
+            DesiredCapabilities dc = new DesiredCapabilities("firefox", string.Empty, new Platform(PlatformType.Any));
+            dc.AcceptInsecureCerts = true;
+            return dc;
         }
 
         /// <summary>

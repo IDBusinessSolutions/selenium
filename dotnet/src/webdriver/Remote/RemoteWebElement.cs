@@ -33,7 +33,7 @@ namespace OpenQA.Selenium.Remote
     /// </summary>
     /// <seealso cref="IWebElement"/>
     /// <seealso cref="ILocatable"/>
-    public class RemoteWebElement : IWebElement, IFindsByLinkText, IFindsById, IFindsByName, IFindsByTagName, IFindsByClassName, IFindsByXPath, IFindsByPartialLinkText, IFindsByCssSelector, IWrapsDriver, ILocatable, ITakesScreenshot
+    public class RemoteWebElement : IWebElement, IFindsByLinkText, IFindsById, IFindsByName, IFindsByTagName, IFindsByClassName, IFindsByXPath, IFindsByPartialLinkText, IFindsByCssSelector, IWrapsDriver, ILocatable, ITakesScreenshot, IWebElementReference
     {
         private RemoteWebDriver driver;
         private string elementId;
@@ -193,7 +193,7 @@ namespace OpenQA.Selenium.Remote
                 {
                     string atom = GetAtom("isDisplayed.js");
                     parameters.Add("script", atom);
-                    parameters.Add("args", new object[] { this.ToElementReference() });
+                    parameters.Add("args", new object[] { this.ToElementReference().ToDictionary() });
                     commandResponse = this.Execute(DriverCommand.ExecuteScript, parameters);
                 }
                 else
@@ -217,7 +217,8 @@ namespace OpenQA.Selenium.Remote
                 Dictionary<string, object> rawLocation;
                 if (this.driver.IsSpecificationCompliant)
                 {
-                    rawLocation = this.driver.ExecuteScript("return arguments[0].getBoundingClientRect();", this) as Dictionary<string, object>;
+                    object scriptResponse = this.driver.ExecuteScript("var rect = arguments[0].getBoundingClientRect(); return {'x': rect.left, 'y': rect.top};", this);
+                    rawLocation = scriptResponse as Dictionary<string, object>;
                 }
                 else
                 {
@@ -243,16 +244,9 @@ namespace OpenQA.Selenium.Remote
         }
 
         /// <summary>
-        /// Gets the ID of the element.
+        /// Gets the internal ID of the element.
         /// </summary>
-        /// <remarks>This property is internal to the WebDriver instance, and is
-        /// not intended to be used in your code. The element's ID has no meaning
-        /// outside of internal WebDriver usage, so it would be improper to scope
-        /// it as public. However, both subclasses of <see cref="RemoteWebElement"/>
-        /// and the parent driver hosting the element have a need to access the
-        /// internal element ID. Therefore, we have two properties returning the
-        /// same value, one scoped as internal, the other as protected.</remarks>
-        internal string InternalElementId
+        string IWebElementReference.ElementReferenceId
         {
             get { return this.elementId; }
         }
@@ -319,6 +313,7 @@ namespace OpenQA.Selenium.Remote
             parameters.Add("id", this.elementId);
             if (this.driver.IsSpecificationCompliant)
             {
+                parameters.Add("text", text);
                 parameters.Add("value", text.ToCharArray());
             }
             else
@@ -341,11 +336,19 @@ namespace OpenQA.Selenium.Remote
         {
             if (this.driver.IsSpecificationCompliant)
             {
+                string elementType = this.GetAttribute("type");
+                if (elementType != null && elementType == "submit")
+                {
+                    this.Click();
+                }
+                else
+                {
                 IWebElement form = this.FindElement(By.XPath("./ancestor-or-self::form"));
                 this.driver.ExecuteScript(
                     "var e = arguments[0].ownerDocument.createEvent('Event');" +
                     "e.initEvent('submit', true, true);" +
                     "if (arguments[0].dispatchEvent(e)) { arguments[0].submit(); }", form);
+                }
             }
             else
             {
@@ -419,7 +422,7 @@ namespace OpenQA.Selenium.Remote
             {
                 string atom = GetAtom("getAttribute.js");
                 parameters.Add("script", atom);
-                parameters.Add("args", new object[] { this.ToElementReference(), attributeName });
+                parameters.Add("args", new object[] { this.ToElementReference().ToDictionary(), attributeName });
                 commandResponse = this.Execute(DriverCommand.ExecuteScript, parameters);
             }
             else
@@ -847,6 +850,15 @@ namespace OpenQA.Selenium.Remote
         }
 
         /// <summary>
+        /// Returns a string that represents the current <see cref="RemoteWebElement"/>.
+        /// </summary>
+        /// <returns>A string that represents the current <see cref="RemoteWebElement"/>.</returns>
+        public override string ToString()
+        {
+            return string.Format(CultureInfo.InvariantCulture, "Element (id = {0})", this.elementId);
+        }
+
+        /// <summary>
         /// Method to get the hash code of the element
         /// </summary>
         /// <returns>Integer of the hash code for the element</returns>
@@ -889,12 +901,23 @@ namespace OpenQA.Selenium.Remote
             }
 
             Dictionary<string, object> parameters = new Dictionary<string, object>();
-            parameters.Add("id", this.elementId);
+            parameters.Add("id", this.Id);
             parameters.Add("other", otherAsElement.Id);
 
             Response response = this.Execute(DriverCommand.ElementEquals, parameters);
             object value = response.Value;
             return value != null && value is bool && (bool)value;
+        }
+
+        /// <summary>
+        /// Converts an object into an object that represents an element for the wire protocol.
+        /// </summary>
+        /// <returns>A <see cref="Dictionary{TKey, TValue}"/> that represents an element in the wire protocol.</returns>
+        Dictionary<string, object> IWebElementReference.ToDictionary()
+        {
+            Dictionary<string, object> elementDictionary = new Dictionary<string, object>();
+            elementDictionary.Add("element-6066-11e4-a52e-4f735466cecf", this.elementId);
+            return elementDictionary;
         }
 
         /// <summary>
@@ -981,11 +1004,9 @@ namespace OpenQA.Selenium.Remote
             }
         }
 
-        private Dictionary<string, object> ToElementReference()
+        private IWebElementReference ToElementReference()
         {
-            Dictionary<string, object> elementDictionary = new Dictionary<string, object>();
-            elementDictionary["element-6066-11e4-a52e-4f735466cecf"] = this.elementId;
-            return elementDictionary;
+            return this as IWebElementReference;
         }
     }
 }

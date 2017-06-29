@@ -17,6 +17,8 @@
 
 package org.openqa.selenium.ie;
 
+import com.google.common.base.Preconditions;
+
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.Platform;
@@ -128,7 +130,13 @@ public class InternetExplorerDriver extends RemoteWebDriver {
    * Capability that defines setting the proxy information for a single IE process
    * without affecting the proxy settings of other instances of IE.
    */
-  public final static String IE_USE_PRE_PROCESS_PROXY = "ie.usePerProcessProxy";
+  public final static String IE_USE_PER_PROCESS_PROXY = "ie.usePerProcessProxy";
+
+  /**
+   * @deprecated Use {@link #IE_USE_PER_PROCESS_PROXY} (the one without the typo);
+   */
+  @Deprecated
+  public final static String IE_USE_PRE_PROCESS_PROXY = IE_USE_PER_PROCESS_PROXY;
 
   /**
    * Capability that defines used IE CLI switches when {@link #FORCE_CREATE_PROCESS} is enabled.
@@ -148,23 +156,52 @@ public class InternetExplorerDriver extends RemoteWebDriver {
     this(null, capabilities, DEFAULT_PORT);
   }
 
+  /**
+   * @deprecated Create an {@link InternetExplorerDriverService} and then use that to create a
+   *   {@link RemoteWebDriver#RemoteWebDriver(org.openqa.selenium.remote.CommandExecutor, Capabilities)} with a
+   *   {@link DriverCommandExecutor}.
+   */
+  @Deprecated
   public InternetExplorerDriver(int port) {
     this(null, null, port);
   }
 
+  /**
+   * @deprecated Create an {@link InternetExplorerDriverService} and then use that to create a
+   *   {@link RemoteWebDriver#RemoteWebDriver(org.openqa.selenium.remote.CommandExecutor, Capabilities)} with a
+   *   {@link DriverCommandExecutor}.
+   */
+  @Deprecated
   public InternetExplorerDriver(InternetExplorerDriverService service) {
     this(service, null, DEFAULT_PORT);
   }
 
+  /**
+   * @deprecated Create an {@link InternetExplorerDriverService} and then use that to create a
+   *   {@link RemoteWebDriver#RemoteWebDriver(org.openqa.selenium.remote.CommandExecutor, Capabilities)} with a
+   *   {@link DriverCommandExecutor}.
+   */
+  @Deprecated
   public InternetExplorerDriver(InternetExplorerDriverService service, Capabilities capabilities) {
     this(service, capabilities, DEFAULT_PORT);
   }
 
-  public InternetExplorerDriver(InternetExplorerDriverService service, Capabilities capabilities,
+  /**
+   * @deprecated Create an {@link InternetExplorerDriverService} and then use that to create a
+   *   {@link RemoteWebDriver#RemoteWebDriver(org.openqa.selenium.remote.CommandExecutor, Capabilities)} with a
+   *   {@link DriverCommandExecutor}.
+   */
+  @Deprecated
+  public InternetExplorerDriver(
+      InternetExplorerDriverService service,
+      Capabilities capabilities,
       int port) {
     if (capabilities == null) {
       capabilities = DesiredCapabilities.internetExplorer();
     }
+
+    Preconditions.checkNotNull(capabilities);
+    capabilities = new InternetExplorerOptions(capabilities);
 
     if (service == null) {
       service = setupService(capabilities, port);

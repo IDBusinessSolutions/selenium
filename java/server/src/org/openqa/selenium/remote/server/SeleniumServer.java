@@ -23,6 +23,7 @@ import org.openqa.grid.internal.utils.configuration.StandaloneConfiguration;
 import org.openqa.grid.shared.GridNodeServer;
 import org.openqa.grid.web.servlet.DisplayHelpServlet;
 import org.openqa.grid.web.servlet.beta.ConsoleServlet;
+import org.openqa.selenium.Platform;
 import org.openqa.selenium.remote.SessionId;
 import org.openqa.selenium.remote.server.handler.DeleteSession;
 import org.seleniumhq.jetty9.server.Connector;
@@ -34,6 +35,8 @@ import org.seleniumhq.jetty9.servlet.ServletContextHandler;
 import org.seleniumhq.jetty9.util.thread.QueuedThreadPool;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
 import javax.servlet.Servlet;
 
@@ -41,6 +44,8 @@ import javax.servlet.Servlet;
  * Provides a server that can launch and manage selenium sessions.
  */
 public class SeleniumServer implements GridNodeServer {
+
+  private final static Logger LOG = Logger.getLogger(SeleniumServer.class.getName());
 
   private Server server;
   private DefaultDriverSessions driverSessions;
@@ -109,22 +114,34 @@ public class SeleniumServer implements GridNodeServer {
 
     ServletContextHandler handler = new ServletContextHandler();
 
-    driverSessions = new DefaultDriverSessions();
-    handler.setAttribute(DriverServlet.SESSIONS_KEY, driverSessions);
-    handler.setContextPath("/");
-    handler.addServlet(DriverServlet.class, "/wd/hub/*");
-    handler.setInitParameter(ConsoleServlet.CONSOLE_PATH_PARAMETER, "/wd/hub");
-
-    handler.setInitParameter(DisplayHelpServlet.HELPER_TYPE_PARAMETER, configuration.role);
-
-    if (configuration.browserTimeout != null) {
+    if (configuration.browserTimeout != null && configuration.browserTimeout >= 0) {
       handler.setInitParameter(DriverServlet.BROWSER_TIMEOUT_PARAMETER,
                                String.valueOf(configuration.browserTimeout));
     }
-    if (configuration.timeout != null) {
+
+    long inactiveSessionTimeoutSeconds = configuration.timeout == null ?
+                                   Long.MAX_VALUE /1000 : configuration.timeout;
+    if (configuration.timeout != null && configuration.timeout >= 0) {
       handler.setInitParameter(DriverServlet.SESSION_TIMEOUT_PARAMETER,
                                String.valueOf(configuration.timeout));
     }
+
+    driverSessions = new DefaultDriverSessions(
+        new DefaultDriverFactory(Platform.getCurrent()),
+        TimeUnit.SECONDS.toMillis(inactiveSessionTimeoutSeconds));
+    handler.setAttribute(DriverServlet.SESSIONS_KEY, driverSessions);
+    handler.setContextPath("/");
+    if (configuration.enablePassThrough) {
+      LOG.info("Using the experimental passthrough mode handler");
+      handler.addServlet(WebDriverServlet.class, "/wd/hub/*");
+      handler.addServlet(WebDriverServlet.class, "/webdriver/*");
+    } else {
+      handler.addServlet(DriverServlet.class, "/wd/hub/*");
+      handler.addServlet(DriverServlet.class, "/webdriver/*");
+    }
+    handler.setInitParameter(ConsoleServlet.CONSOLE_PATH_PARAMETER, "/wd/hub");
+
+    handler.setInitParameter(DisplayHelpServlet.HELPER_TYPE_PARAMETER, configuration.role);
 
     addRcSupport(handler);
     addExtraServlets(handler);

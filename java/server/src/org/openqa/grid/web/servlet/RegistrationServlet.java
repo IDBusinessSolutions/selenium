@@ -18,12 +18,14 @@
 package org.openqa.grid.web.servlet;
 
 import com.google.common.collect.Lists;
+import com.google.common.io.CharStreams;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import org.openqa.grid.common.RegistrationRequest;
+import org.openqa.grid.common.exception.GridConfigurationException;
 import org.openqa.grid.internal.BaseRemoteProxy;
 import org.openqa.grid.internal.Registry;
 import org.openqa.grid.internal.RemoteProxy;
@@ -70,26 +72,32 @@ public class RegistrationServlet extends RegistryBasedServlet {
 
   protected void process(HttpServletRequest request, HttpServletResponse response)
       throws IOException {
-    BufferedReader rd = new BufferedReader(new InputStreamReader(request.getInputStream()));
-    StringBuilder requestJsonString = new StringBuilder();
-    String line;
-    while ((line = rd.readLine()) != null) {
-      requestJsonString.append(line);
+    String requestJsonString;
+
+    try (BufferedReader rd = new BufferedReader(new InputStreamReader(request.getInputStream()))) {
+      requestJsonString = CharStreams.toString(rd);
     }
-    rd.close();
-    log.fine("getting the following registration request  : " + requestJsonString.toString());
+    log.fine("getting the following registration request  : " + requestJsonString);
 
     // getting the settings from the registration
-    JsonObject json = new JsonParser().parse(requestJsonString.toString()).getAsJsonObject();
-    RegistrationRequest registrationRequest;
+    JsonObject json = new JsonParser().parse(requestJsonString).getAsJsonObject();
+
+    if (!json.has("configuration")) {
+      // bad request. there must be a configuration for the proxy
+      throw new GridConfigurationException("No configuration received for proxy.");
+    }
+
+    final RegistrationRequest registrationRequest;
     if (isV2RegistrationRequestJson(json)) {
+      // Se2 compatible request
       GridNodeConfiguration nodeConfiguration =
         mapV2Configuration(json.getAsJsonObject("configuration"));
       registrationRequest = new RegistrationRequest(nodeConfiguration);
       // get the "capabilities" and "id" from the v2 json request
       considerV2Json(registrationRequest.getConfiguration(), json);
     } else {
-       registrationRequest = RegistrationRequest.fromJson(json);
+      // Se3 compatible request.
+      registrationRequest = RegistrationRequest.fromJson(json);
     }
 
     final RemoteProxy proxy = BaseRemoteProxy.getNewInstance(registrationRequest, getRegistry());
@@ -151,20 +159,18 @@ public class RegistrationServlet extends RegistryBasedServlet {
   private void considerV2Json(GridNodeConfiguration configuration, JsonObject json) {
     // Backwards compatible with Selenium 2.x remotes which might send a
     // registration request with the json field "id". 3.x remotes will include the "id" with the
-    // "configuration" object. The presence of { "id": "value" } will only override
-    // { "configuration": { "id": "value" } } when "configuration.id" is null or empty.
-    if (json.has("id")
-        && (configuration.id == null || configuration.id.isEmpty())) {
+    // "configuration" object. The presence of { "id": "value" } should always override
+    // { "configuration": { "id": "value" } }
+    if (json.has("id")) {
       configuration.id = json.get("id").getAsString();
     }
 
     // Backwards compatible with Selenium 2.x remotes which send a registration request with the
     // json object "capabilities". 3.x remotes will include the "capabilities" object with the
-    // "configuration" object. The presence of { "capabilities": [ {...}, {...} ] } will override
-    // { "configuration": { "capabilities": [ {...}, {...} ] } } when "configuration.capabilities" is
-    // null or empty.
-    if (json.has("capabilities")
-        && (configuration.capabilities == null || configuration.capabilities.isEmpty())) {
+    // "configuration" object. The presence of { "capabilities": [ {...}, {...} ] } should always
+    // override { "configuration": { "capabilities": [ {...}, {...} ] } }
+    if (json.has("capabilities")) {
+      configuration.capabilities.clear();
       JsonArray capabilities = json.get("capabilities").getAsJsonArray();
       for (int i = 0; i < capabilities.size(); i++) {
         DesiredCapabilities cap = new JsonToBeanConverter()

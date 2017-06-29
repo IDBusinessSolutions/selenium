@@ -101,12 +101,10 @@ class RubyMappings
           ENV['WD_SPEC_DRIVER'] = args[:name].tr('-', '_')
         end
 
-        ENV['CI_REPORTS']     = "build/test_logs"
-
         ruby :include => args[:include],
              :require => args[:require],
              :command => args[:command],
-             :args    => %w[--format CI::Reporter::RSpec --format doc --color] + (!!ENV['example'] ? ['--example', ENV['example']] : []),
+             :args    => %w[--format doc --color] + (!!ENV['example'] ? ['--example', ENV['example']] : []),
              :debug   => !!ENV['log'],
              :files   => args[:srcs],
              :gemfile => "build/rb/Gemfile"
@@ -126,10 +124,12 @@ class RubyMappings
         yard_args += ["--output-dir", output_dir]
         yard_args += ["--readme", readme]
 
-        ruby :command => "yard",
-             :args    => yard_args,
-             :files   => files,
-             :gemfile => "build/rb/Gemfile"
+        Dir.chdir(File.join('build', 'rb')) do
+          ruby :command => "yard",
+               :args    => yard_args,
+               :files   => files,
+               :gemfile => "Gemfile"
+        end
       end
 
       add_dependencies t, dir, args[:deps]

@@ -18,6 +18,7 @@
 """The WebDriver implementation."""
 
 import base64
+import copy
 import warnings
 from contextlib import contextmanager
 
@@ -28,7 +29,8 @@ from .errorhandler import ErrorHandler
 from .switch_to import SwitchTo
 from .mobile import Mobile
 from .file_detector import FileDetector, LocalFileDetector
-from selenium.common.exceptions import WebDriverException
+from selenium.common.exceptions import (InvalidArgumentException,
+                                        WebDriverException)
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.html5.application_cache import ApplicationCache
 
@@ -36,6 +38,47 @@ try:
     str = basestring
 except NameError:
     pass
+
+
+_W3C_CAPABILITY_NAMES = frozenset([
+    'acceptInsecureCerts',
+    'browserName',
+    'browserVersion',
+    'platformName',
+    'pageLoadStrategy',
+    'proxy',
+    'setWindowRect',
+    'timeouts',
+    'unhandledPromptBehavior',
+])
+
+
+def _make_w3c_caps(caps):
+    """Makes a W3C alwaysMatch capabilities object.
+
+    Filters out capability names that are not in the W3C spec. Spec-compliant
+    drivers will reject requests containing unknown capability names.
+
+    Moves the Firefox profile, if present, from the old location to the new Firefox
+    options object.
+
+    :Args:
+     - caps - A dictionary of capabilities requested by the caller.
+    """
+    profile = caps.get('firefox_profile')
+    always_match = {}
+    for k, v in caps.iteritems():
+        if k in _W3C_CAPABILITY_NAMES or ':' in k:
+            always_match[k] = v
+    if profile:
+        moz_opts = always_match.get('moz:firefoxOptions', {})
+        # If it's already present, assume the caller did that intentionally.
+        if 'profile' not in moz_opts:
+            # Don't mutate the original capabilities.
+            new_opts = copy.deepcopy(moz_opts)
+            new_opts['profile'] = profile
+            always_match['moz:firefoxOptions'] = new_opts
+    return {"firstMatch": [{}], "alwaysMatch": always_match}
 
 
 class WebDriver(object):
@@ -80,6 +123,8 @@ class WebDriver(object):
         if not isinstance(desired_capabilities, dict):
             raise WebDriverException("Desired Capabilities must be a dictionary")
         if proxy is not None:
+            warnings.warn("Please use FirefoxOptions to set proxy",
+                          DeprecationWarning)
             proxy.add_to_capabilities(desired_capabilities)
         self.command_executor = command_executor
         if type(self.command_executor) is bytes or isinstance(self.command_executor, str):
@@ -89,6 +134,9 @@ class WebDriver(object):
         self.capabilities = {}
         self.error_handler = ErrorHandler()
         self.start_client()
+        if browser_profile is not None:
+            warnings.warn("Please use FirefoxOptions to set browser profile",
+                          DeprecationWarning)
         self.start_session(desired_capabilities, browser_profile)
         self._switch_to = SwitchTo(self)
         self._mobile = Mobile(self)
@@ -157,7 +205,7 @@ class WebDriver(object):
         """
         pass
 
-    def start_session(self, desired_capabilities, browser_profile=None):
+    def start_session(self, capabilities, browser_profile=None):
         """
         Creates a new session with the desired capabilities.
 
@@ -168,19 +216,28 @@ class WebDriver(object):
          - javascript_enabled - Whether the new session should support JavaScript.
          - browser_profile - A selenium.webdriver.firefox.firefox_profile.FirefoxProfile object. Only used if Firefox is requested.
         """
-        capabilities = {'desiredCapabilities': {}, 'requiredCapabilities': {}}
-        for k, v in desired_capabilities.items():
-            if k not in ('desiredCapabilities', 'requiredCapabilities'):
-                capabilities['desiredCapabilities'][k] = v
-            else:
-                capabilities[k].update(v)
+        if not isinstance(capabilities, dict):
+            raise InvalidArgumentException("Capabilities must be a dictionary")
         if browser_profile:
-            capabilities['desiredCapabilities']['firefox_profile'] = browser_profile.encoded
-        response = self.execute(Command.NEW_SESSION, capabilities)
+            if "moz:firefoxOptions" in capabilities:
+                capabilities["moz:firefoxOptions"]["profile"] = browser_profile.encoded
+            else:
+                capabilities.update({'firefox_profile': browser_profile.encoded})
+        w3c_caps = _make_w3c_caps(capabilities)
+        parameters = {"capabilities": w3c_caps,
+                      "desiredCapabilities": capabilities}
+        response = self.execute(Command.NEW_SESSION, parameters)
+        if 'sessionId' not in response:
+            response = response['value']
         self.session_id = response['sessionId']
-        self.capabilities = response['value']
+        self.capabilities = response.get('value')
 
-        # Quick check to see if we have a W3C Compliant browser
+        # if capabilities is none we are probably speaking to
+        # a W3C endpoint
+        if self.capabilities is None:
+            self.capabilities = response.get('capabilities')
+
+        # Double check to see if we have a W3C Compliant browser
         self.w3c = response.get('status') is None
 
     def _wrap_value(self, value):
@@ -201,13 +258,17 @@ class WebDriver(object):
         return self._web_element_cls(self, element_id, w3c=self.w3c)
 
     def _unwrap_value(self, value):
-        if isinstance(value, dict) and ('ELEMENT' in value or 'element-6066-11e4-a52e-4f735466cecf' in value):
-            wrapped_id = value.get('ELEMENT', None)
-            if wrapped_id:
-                return self.create_web_element(value['ELEMENT'])
+        if isinstance(value, dict):
+            if 'ELEMENT' in value or 'element-6066-11e4-a52e-4f735466cecf' in value:
+                wrapped_id = value.get('ELEMENT', None)
+                if wrapped_id:
+                    return self.create_web_element(value['ELEMENT'])
+                else:
+                    return self.create_web_element(value['element-6066-11e4-a52e-4f735466cecf'])
             else:
-                return self.create_web_element(value['element-6066-11e4-a52e-4f735466cecf'])
-
+                for key, val in value.items():
+                    value[key] = self._unwrap_value(val)
+                return value
         elif isinstance(value, list):
             return list(self._unwrap_value(item) for item in value)
         else:
@@ -460,7 +521,13 @@ class WebDriver(object):
             driver.execute_script('document.title')
         """
         converted_args = list(args)
-        return self.execute(Command.EXECUTE_SCRIPT, {
+        command = None
+        if self.w3c:
+            command = Command.W3C_EXECUTE_SCRIPT
+        else:
+            command = Command.EXECUTE_SCRIPT
+
+        return self.execute(command, {
             'script': script,
             'args': converted_args})['value']
 
@@ -476,7 +543,12 @@ class WebDriver(object):
             driver.execute_async_script('document.title')
         """
         converted_args = list(args)
-        return self.execute(Command.EXECUTE_ASYNC_SCRIPT, {
+        if self.w3c:
+            command = Command.W3C_EXECUTE_SCRIPT_ASYNC
+        else:
+            command = Command.EXECUTE_ASYNC_SCRIPT
+
+        return self.execute(command, {
             'script': script,
             'args': converted_args})['value']
 
@@ -529,7 +601,10 @@ class WebDriver(object):
         :Usage:
             driver.current_window_handle
         """
-        return self.execute(Command.GET_CURRENT_WINDOW_HANDLE)['value']
+        if self.w3c:
+            return self.execute(Command.W3C_GET_CURRENT_WINDOW_HANDLE)['value']
+        else:
+            return self.execute(Command.GET_CURRENT_WINDOW_HANDLE)['value']
 
     @property
     def window_handles(self):
@@ -539,7 +614,10 @@ class WebDriver(object):
         :Usage:
             driver.window_handles
         """
-        return self.execute(Command.GET_WINDOW_HANDLES)['value']
+        if self.w3c:
+            return self.execute(Command.W3C_GET_WINDOW_HANDLES)['value']
+        else:
+            return self.execute(Command.GET_WINDOW_HANDLES)['value']
 
     def maximize_window(self):
         """
@@ -686,8 +764,7 @@ class WebDriver(object):
         """
         if self.w3c:
             self.execute(Command.SET_TIMEOUTS, {
-                'ms': float(time_to_wait) * 1000,
-                'type': 'implicit'})
+                'implicit': int(float(time_to_wait) * 1000)})
         else:
             self.execute(Command.IMPLICIT_WAIT, {
                 'ms': float(time_to_wait) * 1000})
@@ -705,8 +782,7 @@ class WebDriver(object):
         """
         if self.w3c:
             self.execute(Command.SET_TIMEOUTS, {
-                'ms': float(time_to_wait) * 1000,
-                'type': 'script'})
+                'script': int(float(time_to_wait) * 1000)})
         else:
             self.execute(Command.SET_SCRIPT_TIMEOUT, {
                 'ms': float(time_to_wait) * 1000})
@@ -722,9 +798,13 @@ class WebDriver(object):
         :Usage:
             driver.set_page_load_timeout(30)
         """
-        self.execute(Command.SET_TIMEOUTS, {
-            'ms': float(time_to_wait) * 1000,
-            'type': 'page load'})
+        try:
+            self.execute(Command.SET_TIMEOUTS, {
+                'pageLoad': int(float(time_to_wait) * 1000)})
+        except WebDriverException:
+            self.execute(Command.SET_TIMEOUTS, {
+                'ms': float(time_to_wait) * 1000,
+                'type': 'page load'})
 
     def find_element(self, by=By.ID, value=None):
         """
@@ -786,15 +866,20 @@ class WebDriver(object):
 
     def get_screenshot_as_file(self, filename):
         """
-        Gets the screenshot of the current window. Returns False if there is
-           any IOError, else returns True. Use full paths in your filename.
+        Saves a screenshot of the current window to a PNG image file. Returns
+           False if there is any IOError, else returns True. Use full paths in
+           your filename.
 
         :Args:
-         - filename: The full path you wish to save your screenshot to.
+         - filename: The full path you wish to save your screenshot to. This
+           should end with a `.png` extension.
 
         :Usage:
             driver.get_screenshot_as_file('/Screenshots/foo.png')
         """
+        if not filename.lower().endswith('.png'):
+            warnings.warn("name used for saved screenshot does not match file "
+                          "type. It should end with a `.png` extension", UserWarning)
         png = self.get_screenshot_as_png()
         try:
             with open(filename, 'wb') as f:
@@ -805,7 +890,20 @@ class WebDriver(object):
             del png
         return True
 
-    save_screenshot = get_screenshot_as_file
+    def save_screenshot(self, filename):
+        """
+        Saves a screenshot of the current window to a PNG image file. Returns
+           False if there is any IOError, else returns True. Use full paths in
+           your filename.
+
+        :Args:
+         - filename: The full path you wish to save your screenshot to. This
+           should end with a `.png` extension.
+
+        :Usage:
+            driver.save_screenshot('/Screenshots/foo.png')
+        """
+        return self.get_screenshot_as_file(filename)
 
     def get_screenshot_as_png(self):
         """
@@ -894,10 +992,37 @@ class WebDriver(object):
             driver.get_window_position()
         """
         if self.w3c:
-            return self.execute(Command.W3C_GET_WINDOW_POSITION)
+            return self.execute(Command.W3C_GET_WINDOW_POSITION)['value']
         else:
             return self.execute(Command.GET_WINDOW_POSITION, {
                 'windowHandle': windowHandle})['value']
+
+    def get_window_rect(self):
+        """
+        Gets the x, y coordinates of the window as well as height and width of
+        the current window.
+
+        :Usage:
+            driver.get_window_rect()
+        """
+        return self.execute(Command.GET_WINDOW_RECT)['value']
+
+    def set_window_rect(self, x=None, y=None, width=None, height=None):
+        """
+        Sets the x, y coordinates of the window as well as height and width of
+        the current window.
+
+        :Usage:
+            driver.set_window_rect(x=10, y=10)
+            driver.set_window_rect(width=100, height=200)
+            driver.set_window_rect(x=10, y=10, width=100, height=200)
+        """
+        if (x is None and y is None) and (height is None and width is None):
+            raise InvalidArgumentException("x and y or height and width need values")
+
+        return self.execute(Command.SET_WINDOW_RECT, {"x": x, "y": y,
+                                                      "width": width,
+                                                      "height": height})['value']
 
     @property
     def file_detector(self):

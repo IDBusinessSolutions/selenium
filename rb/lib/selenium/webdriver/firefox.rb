@@ -21,15 +21,19 @@ require 'timeout'
 require 'socket'
 require 'rexml/document'
 
+require 'selenium/webdriver/firefox/driver'
+
 require 'selenium/webdriver/firefox/util'
 require 'selenium/webdriver/firefox/extension'
 require 'selenium/webdriver/firefox/binary'
 require 'selenium/webdriver/firefox/profiles_ini'
 require 'selenium/webdriver/firefox/profile'
 require 'selenium/webdriver/firefox/launcher'
-require 'selenium/webdriver/firefox/bridge'
-require 'selenium/webdriver/firefox/w3c_bridge'
-require 'selenium/webdriver/firefox/binary'
+require 'selenium/webdriver/firefox/legacy/driver'
+
+require 'selenium/webdriver/firefox/marionette/bridge'
+require 'selenium/webdriver/firefox/marionette/driver'
+require 'selenium/webdriver/firefox/options'
 require 'selenium/webdriver/firefox/service'
 
 module Selenium
@@ -41,25 +45,13 @@ module Selenium
       DEFAULT_ASSUME_UNTRUSTED_ISSUER = true
       DEFAULT_LOAD_NO_FOCUS_LIB = false
 
-      MISSING_TEXT = <<-ERROR.tr("\n", '').freeze
-        Unable to find Mozilla geckodriver. Please download the server from
-        https://github.com/mozilla/geckodriver/releases and place it
-        somewhere on your PATH. More info at https://developer.mozilla.org/en-US/docs/Mozilla/QA/Marionette/WebDriver.
-      ERROR
-
       def self.driver_path=(path)
         Platform.assert_executable path
         @driver_path = path
       end
 
       def self.driver_path
-        @driver_path ||= begin
-          path = Platform.find_binary('geckodriver*')
-          raise Error::WebDriverError, MISSING_TEXT unless path
-          Platform.assert_executable path
-
-          path
-        end
+        @driver_path ||= nil
       end
 
       def self.path=(path)

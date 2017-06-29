@@ -145,7 +145,8 @@ namespace OpenQA.Selenium
             IWebElement uploadElement = driver.FindElement(By.Id("upload"));
             Assert.IsTrue(string.IsNullOrEmpty(uploadElement.GetAttribute("value")));
 
-            System.IO.FileInfo inputFile = new System.IO.FileInfo("test.txt");
+            string filePath = System.IO.Path.Combine(EnvironmentManager.Instance.CurrentDirectory, "test.txt");
+            System.IO.FileInfo inputFile = new System.IO.FileInfo(filePath);
             System.IO.StreamWriter inputFileWriter = inputFile.CreateText();
             inputFileWriter.WriteLine("Hello world");
             inputFileWriter.Close();
@@ -175,7 +176,8 @@ namespace OpenQA.Selenium
             IWebElement uploadElement = driver.FindElement(By.Id("file"));
             Assert.AreEqual(string.Empty, uploadElement.GetAttribute("value"));
 
-            System.IO.FileInfo inputFile = new System.IO.FileInfo("test.txt");
+            string filePath = System.IO.Path.Combine(EnvironmentManager.Instance.CurrentDirectory, "test.txt");
+            System.IO.FileInfo inputFile = new System.IO.FileInfo(filePath);
             System.IO.StreamWriter inputFileWriter = inputFile.CreateText();
             inputFileWriter.WriteLine("Hello world");
             inputFileWriter.Close();
@@ -194,24 +196,22 @@ namespace OpenQA.Selenium
         [IgnoreBrowser(Browser.WindowsPhone, "Does not yet support file uploads")]
         public void ShouldBeAbleToUploadTheSameFileTwice()
         {
-            System.IO.FileInfo inputFile = new System.IO.FileInfo("test.txt");
+            string filePath = System.IO.Path.Combine(EnvironmentManager.Instance.CurrentDirectory, "test.txt");
+            System.IO.FileInfo inputFile = new System.IO.FileInfo(filePath);
             System.IO.StreamWriter inputFileWriter = inputFile.CreateText();
             inputFileWriter.WriteLine("Hello world");
             inputFileWriter.Close();
 
-            driver.Url = formsPage;
-            IWebElement uploadElement = driver.FindElement(By.Id("upload"));
-            Assert.IsTrue(string.IsNullOrEmpty(uploadElement.GetAttribute("value")));
+            for (int i = 0; i < 2; ++i)
+            {
+                driver.Url = formsPage;
+                IWebElement uploadElement = driver.FindElement(By.Id("upload"));
+                Assert.IsTrue(string.IsNullOrEmpty(uploadElement.GetAttribute("value")));
 
-            uploadElement.SendKeys(inputFile.FullName);
-            uploadElement.Submit();
+                uploadElement.SendKeys(inputFile.FullName);
+                uploadElement.Submit();
+            }
 
-            driver.Url = formsPage;
-            uploadElement = driver.FindElement(By.Id("upload"));
-            Assert.IsTrue(string.IsNullOrEmpty(uploadElement.GetAttribute("value")));
-
-            uploadElement.SendKeys(inputFile.FullName);
-            uploadElement.Submit();
             // If we get this far, then we're all good.
         }
 
@@ -295,6 +295,7 @@ namespace OpenQA.Selenium
         }
 
         [Test]
+        [IgnoreBrowser(Browser.IE, "Hangs")]
         [IgnoreBrowser(Browser.Android, "Untested")]
         [IgnoreBrowser(Browser.HtmlUnit, "Untested")]
         [IgnoreBrowser(Browser.IPhone, "Untested")]

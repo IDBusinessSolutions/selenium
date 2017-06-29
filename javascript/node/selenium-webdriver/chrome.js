@@ -59,7 +59,7 @@
  *     let options = new chrome.Options();
  *     // configure browser options ...
  *
- *     let driver = new chrome.Driver(options, service);
+ *     let driver = chrome.Driver.createSession(options, service);
  *
  * Users should only instantiate the {@link Driver} class directly when they
  * need a custom driver service configuration (as shown above). For normal
@@ -119,8 +119,7 @@ const fs = require('fs'),
 
 const http = require('./http'),
     io = require('./io'),
-    Capabilities = require('./lib/capabilities').Capabilities,
-    Capability = require('./lib/capabilities').Capability,
+    {Capabilities, Capability} = require('./lib/capabilities'),
     command = require('./lib/command'),
     logging = require('./lib/logging'),
     promise = require('./lib/promise'),
@@ -144,7 +143,9 @@ const CHROMEDRIVER_EXE =
  * @enum {string}
  */
 const Command = {
-  LAUNCH_APP: 'launchApp'
+  LAUNCH_APP: 'launchApp',
+  GET_NETWORK_CONDITIONS: 'getNetworkConditions',
+  SET_NETWORK_CONDITIONS: 'setNetworkConditions'
 };
 
 
@@ -170,6 +171,14 @@ function configureExecutor(executor) {
       Command.LAUNCH_APP,
       'POST',
       '/session/:sessionId/chromium/launch_app');
+  executor.defineCommand(
+      Command.GET_NETWORK_CONDITIONS,
+      'GET',
+      '/session/:sessionId/chromium/network_conditions');
+  executor.defineCommand(
+      Command.SET_NETWORK_CONDITIONS,
+      'POST',
+      '/session/:sessionId/chromium/network_conditions');
 }
 
 
@@ -596,7 +605,7 @@ class Options {
    *     let options = new chrome.Options().setMobileEmulation(
    *         {deviceName: 'Google Nexus 5'});
    *
-   *     let driver = new chrome.Driver(options);
+   *     let driver = chrome.Driver.createSession(options);
    *
    * __Example 2: Using Custom Screen Configuration__
    *
@@ -606,7 +615,7 @@ class Options {
    *         pixelRatio: 3.0
    *     });
    *
-   *     let driver = new chrome.Driver(options);
+   *     let driver = chrome.Driver.createSession(options);
    *
    *
    * [em]: https://sites.google.com/a/chromium.org/chromedriver/mobile-emulation
@@ -678,34 +687,27 @@ class Options {
  * Creates a new WebDriver client for Chrome.
  */
 class Driver extends webdriver.WebDriver {
-  /**
-   * @param {(Capabilities|Options)=} opt_config The configuration
-   *     options.
-   * @param {remote.DriverService=} opt_service The session to use; will use
-   *     the {@linkplain #getDefaultService default service} by default.
-   * @param {promise.ControlFlow=} opt_flow The control flow to use,
-   *     or {@code null} to use the currently active flow.
-   * @param {http.Executor=} opt_executor A pre-configured command executor that
-   *     should be used to send commands to the remote end. The provided
-   *     executor should not be reused with other clients as its internal
-   *     command mappings will be updated to support Chrome-specific commands.
-   *
-   * You may provide either a custom executor or a driver service, but not both.
-   *
-   * @throws {Error} if both `opt_service` and `opt_executor` are provided.
-   */
-  constructor(opt_config, opt_service, opt_flow, opt_executor) {
-    if (opt_service && opt_executor) {
-      throw Error(
-          'Either a DriverService or Executor may be provided, but not both');
-    }
 
+  /**
+   * Creates a new session with the ChromeDriver.
+   *
+   * @param {(Capabilities|Options)=} opt_config The configuration options.
+   * @param {(remote.DriverService|http.Executor)=} opt_serviceExecutor Either
+   *     a  DriverService to use for the remote end, or a preconfigured executor
+   *     for an externally managed endpoint. If neither is provided, the
+   *     {@linkplain ##getDefaultService default service} will be used by
+   *     default.
+   * @param {promise.ControlFlow=} opt_flow The control flow to use, or `null`
+   *     to use the currently active flow.
+   * @return {!Driver} A new driver instance.
+   */
+  static createSession(opt_config, opt_serviceExecutor, opt_flow) {
     let executor;
-    if (opt_executor) {
-      executor = opt_executor;
+    if (opt_serviceExecutor instanceof http.Executor) {
+      executor = opt_serviceExecutor;
       configureExecutor(executor);
     } else {
-      let service = opt_service || getDefaultService();
+      let service = opt_serviceExecutor || getDefaultService();
       executor = createExecutor(service.start());
     }
 
@@ -713,9 +715,8 @@ class Driver extends webdriver.WebDriver {
         opt_config instanceof Options ? opt_config.toCapabilities() :
         (opt_config || Capabilities.chrome());
 
-    let driver = webdriver.WebDriver.createSession(executor, caps, opt_flow);
-
-    super(driver.getSession(), executor, driver.controlFlow());
+    return /** @type {!Driver} */(
+        webdriver.WebDriver.createSession(executor, caps, opt_flow, this));
   }
 
   /**
@@ -735,6 +736,43 @@ class Driver extends webdriver.WebDriver {
     return this.schedule(
         new command.Command(Command.LAUNCH_APP).setParameter('id', id),
         'Driver.launchApp()');
+  }
+  
+  /**
+   * Schedules a command to get Chrome network emulation settings.
+   * @return {!promise.Thenable<T>} A promise that will be resolved
+   *     when network emulation settings are retrievied.
+   */
+  getNetworkConditions() {
+    return this.schedule(
+        new command.Command(Command.GET_NETWORK_CONDITIONS),
+        'Driver.getNetworkConditions()');
+  }
+
+  /**
+   * Schedules a command to set Chrome network emulation settings.
+   * 
+   * __Sample Usage:__
+   * 
+   *  driver.setNetworkConditions({
+   *    offline: false,
+   *    latency: 5, // Additional latency (ms).
+   *    download_throughput: 500 * 1024, // Maximal aggregated download throughput.
+   *    upload_throughput: 500 * 1024 // Maximal aggregated upload throughput.
+   * });
+   * 
+   * @param {Object} spec Defines the network conditions to set
+   * @return {!promise.Thenable<void>} A promise that will be resolved
+   *     when network emulation settings are set.
+   */
+  setNetworkConditions(spec) {
+    if (!spec || typeof spec !== 'object') {
+      throw TypeError('setNetworkConditions called with non-network-conditions parameter');
+    }
+
+    return this.schedule(
+        new command.Command(Command.SET_NETWORK_CONDITIONS).setParameter('network_conditions', spec),
+        'Driver.setNetworkConditions(' + JSON.stringify(spec) + ')');
   }
 }
 

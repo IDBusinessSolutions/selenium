@@ -36,15 +36,29 @@ module Selenium
       SOCKET_LOCK_TIMEOUT = 45
       STOP_TIMEOUT        = 20
 
+      @executable = nil
+      @missing_text = nil
+
+      class << self
+        attr_reader :executable, :missing_text
+      end
+
       attr_accessor :host
 
-      def initialize(executable_path, port, *extra_args)
-        @executable_path = executable_path
+      def initialize(executable_path, port, driver_opts)
+        @executable_path = binary_path(executable_path)
         @host            = Platform.localhost
         @port            = Integer(port)
-        @extra_args      = extra_args
+        @extra_args      = extract_service_args(driver_opts)
 
         raise Error::WebDriverError, "invalid port: #{@port}" if @port < 1
+      end
+
+      def binary_path(path)
+        path = Platform.find_binary(self.class.executable) if path.nil?
+        raise Error::WebDriverError, self.class.missing_text unless path
+        Platform.assert_executable path
+        path
       end
 
       def start
@@ -62,8 +76,9 @@ module Selenium
       end
 
       def stop
-        return if process_exited?
         stop_server
+        @process.poll_for_exit STOP_TIMEOUT
+      rescue ChildProcess::TimeoutError
       ensure
         stop_process
       end
@@ -91,14 +106,14 @@ module Selenium
         raise NotImplementedError, 'subclass responsibility'
       end
 
-      def stop_server
-        raise NotImplementedError, 'subclass responsibility'
+      def stop_process
+        return if process_exited?
+        @process.stop STOP_TIMEOUT
       end
 
-      def stop_process
-        @process.poll_for_exit STOP_TIMEOUT
-      rescue ChildProcess::TimeoutError
-        @process.stop STOP_TIMEOUT
+      def stop_server
+        return if process_exited?
+        connect_to_server { |http| http.get('/shutdown') }
       end
 
       def process_running?
@@ -122,6 +137,13 @@ module Selenium
       def socket_lock
         @socket_lock ||= SocketLock.new(@port - 1, SOCKET_LOCK_TIMEOUT)
       end
+
+      protected
+
+      def extract_service_args(driver_opts)
+        driver_opts.key?(:args) ? driver_opts.delete(:args) :  []
+      end
+
     end # Service
   end # WebDriver
 end # Selenium

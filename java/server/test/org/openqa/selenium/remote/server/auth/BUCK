@@ -9,9 +9,10 @@ java_library(
   name = 'lib',
   srcs = glob(['*.java']),
   deps = [
+    '//java/client/src/org/openqa/selenium:selenium',
     '//java/server/src/org/openqa/selenium/remote/server:server',
-    '//third_party/java/httpcomponents:httpclient',
     '//third_party/java/guava:guava',
+    '//third_party/java/httpcomponents:httpclient',
     '//third_party/java/jetty:jetty',
     '//third_party/java/servlet:servlet-api',
   ],

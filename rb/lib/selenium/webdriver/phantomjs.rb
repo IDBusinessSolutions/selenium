@@ -20,26 +20,22 @@
 require 'net/http'
 
 require 'selenium/webdriver/phantomjs/service'
-require 'selenium/webdriver/phantomjs/bridge'
+require 'selenium/webdriver/phantomjs/driver'
 
 module Selenium
   module WebDriver
     module PhantomJS
-      MISSING_TEXT = 'Unable to find phantomjs executable.'.freeze
-
-      def self.path=(path)
-        Platform.assert_executable path
-        @path = path
-      end
-
-      def self.path
-        @path ||= begin
-          path = Platform.find_binary('phantomjs')
-          raise Error::WebDriverError, MISSING_TEXT unless path
+      class << self
+        def path=(path)
           Platform.assert_executable path
-
-          path
+          @path = path
         end
+        alias_method :driver_path=, :path=
+
+        def path
+          @path ||= nil
+        end
+        alias_method :driver_path, :path
       end
     end # PhantomJS
   end # WebDriver

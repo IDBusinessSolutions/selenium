@@ -33,8 +33,6 @@ import org.openqa.selenium.remote.service.DriverCommandExecutor;
  */
 public class SafariDriver extends RemoteWebDriver {
 
-  private SafariDriverService service;
-
   /**
    * Initializes a new SafariDriver} class with default {@link SafariOptions}.
    */
@@ -59,14 +57,7 @@ public class SafariDriver extends RemoteWebDriver {
    * @param safariOptions safari specific options / capabilities for the driver
    */
   public SafariDriver(SafariOptions safariOptions) {
-    super(getExecutor(safariOptions), safariOptions.toCapabilities(), requiredCapabilities(safariOptions));
-  }
-
-  /**
-   * Ensure the new safaridriver receives non null required capabilities.
-   */
-  private static Capabilities requiredCapabilities(SafariOptions options) {
-    return new DesiredCapabilities();
+    super(getExecutor(safariOptions), safariOptions.toCapabilities());
   }
 
   private static CommandExecutor getExecutor(SafariOptions options) {

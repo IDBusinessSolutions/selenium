@@ -204,41 +204,26 @@ public class ResultConfig {
   private HandlerFactory getHandlerFactory(Class<? extends RestishHandler<?>> handlerClazz) {
     final Constructor<? extends RestishHandler<?>> sessionAware = getConstructor(handlerClazz, Session.class);
     if (sessionAware != null) {
-      return new HandlerFactory() {
-        @Override
-        public RestishHandler<?> createHandler(SessionId sessionId) throws Exception {
-          return sessionAware.newInstance(sessionId != null ? sessions.get(sessionId) : null);
-        }
-      };
+      return (sessionId) ->
+          sessionAware.newInstance(sessionId != null ? sessions.get(sessionId) : null);
     }
 
     final Constructor<? extends RestishHandler> driverSessions =
         getConstructor(handlerClazz, DriverSessions.class);
     if (driverSessions != null) {
-      return new HandlerFactory() {
-        @Override
-        public RestishHandler<?> createHandler(SessionId sessionId) throws Exception {
-          return driverSessions.newInstance(sessions);
-        }
-      };
+      return (sessionId) -> driverSessions.newInstance(sessions);
     }
 
-
-    final Constructor<? extends RestishHandler> norags = getConstructor(handlerClazz);
-    if (norags != null) {
-      return new HandlerFactory() {
-        @Override
-        public RestishHandler<?> createHandler(SessionId sessionId) throws Exception {
-          return norags.newInstance();
-        }
-      };
+    final Constructor<? extends RestishHandler> noArgs = getConstructor(handlerClazz);
+    if (noArgs != null) {
+      return (sessionId) -> noArgs.newInstance();
     }
 
     throw new IllegalArgumentException("Don't know how to construct " + handlerClazz);
   }
 
   private static Constructor<? extends RestishHandler<?>> getConstructor(
-      Class<? extends RestishHandler<?>> handlerClazz, Class... types) {
+      Class<? extends RestishHandler<?>> handlerClazz, Class<?>... types) {
     try {
       return handlerClazz.getConstructor(types);
     } catch (NoSuchMethodException e) {

@@ -18,6 +18,8 @@
 package org.openqa.selenium.remote.http;
 
 import static org.openqa.selenium.remote.DriverCommand.ACCEPT_ALERT;
+import static org.openqa.selenium.remote.DriverCommand.ACTIONS;
+import static org.openqa.selenium.remote.DriverCommand.CLEAR_ACTIONS_STATE;
 import static org.openqa.selenium.remote.DriverCommand.CLEAR_LOCAL_STORAGE;
 import static org.openqa.selenium.remote.DriverCommand.CLEAR_SESSION_STORAGE;
 import static org.openqa.selenium.remote.DriverCommand.DISMISS_ALERT;
@@ -65,7 +67,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Resources;
 import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 
 import org.openqa.selenium.WebDriverException;
@@ -73,6 +74,7 @@ import org.openqa.selenium.remote.internal.WebElementToJsonConverter;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -111,10 +113,10 @@ public class W3CHttpCommandCodec extends AbstractHttpCommandCodec {
     alias(GET_SESSION_STORAGE_SIZE, EXECUTE_SCRIPT);
 
     defineCommand(MAXIMIZE_CURRENT_WINDOW, post("/session/:sessionId/window/maximize"));
-    alias(GET_CURRENT_WINDOW_POSITION, EXECUTE_SCRIPT);
-    alias(SET_CURRENT_WINDOW_POSITION, EXECUTE_SCRIPT);
-    defineCommand(GET_CURRENT_WINDOW_SIZE, get("/session/:sessionId/window/size"));
-    defineCommand(SET_CURRENT_WINDOW_SIZE, post("/session/:sessionId/window/size"));
+    defineCommand(GET_CURRENT_WINDOW_SIZE, get("/session/:sessionId/window/rect"));
+    defineCommand(SET_CURRENT_WINDOW_SIZE, post("/session/:sessionId/window/rect"));
+    alias(GET_CURRENT_WINDOW_POSITION, GET_CURRENT_WINDOW_SIZE);
+    alias(SET_CURRENT_WINDOW_POSITION, SET_CURRENT_WINDOW_SIZE);
     defineCommand(GET_CURRENT_WINDOW_HANDLE, get("/session/:sessionId/window"));
     defineCommand(GET_WINDOW_HANDLES, get("/session/:sessionId/window/handles"));
 
@@ -124,6 +126,9 @@ public class W3CHttpCommandCodec extends AbstractHttpCommandCodec {
     defineCommand(SET_ALERT_VALUE, post("/session/:sessionId/alert/text"));
 
     defineCommand(GET_ACTIVE_ELEMENT, get("/session/:sessionId/element/active"));
+
+    defineCommand(ACTIONS, post("/session/:sessionId/actions"));
+    defineCommand(CLEAR_ACTIONS_STATE, delete("/session/:sessionId/actions"));
   }
 
   @Override
@@ -183,7 +188,7 @@ public class W3CHttpCommandCodec extends AbstractHttpCommandCodec {
 
       case GET_ELEMENT_LOCATION_ONCE_SCROLLED_INTO_VIEW:
         return toScript(
-          "return arguments[0].getBoundingClientRect()",
+          "var e = arguments[0]; e.scrollIntoView({behavior: 'instant', block: 'end', inline: 'nearest'}); var rect = e.getBoundingClientRect(); return {'x': rect.left, 'y': rect.top};",
           asElement(parameters.get("id")));
 
       case GET_PAGE_SOURCE:
@@ -228,37 +233,39 @@ public class W3CHttpCommandCodec extends AbstractHttpCommandCodec {
       case GET_SESSION_STORAGE_SIZE:
         return toScript("return sessionStorage.length");
 
-      case GET_CURRENT_WINDOW_POSITION:
-        return toScript("return {x: window.screenX, y: window.screenY}");
-
       case IS_ELEMENT_DISPLAYED:
         return executeAtom("isDisplayed.js", asElement(parameters.get("id")));
 
       case SEND_KEYS_TO_ACTIVE_ELEMENT:
       case SEND_KEYS_TO_ELEMENT:
+        // When converted from JSON, this is a list, not an array
+        Object rawValue = parameters.get("value");
+        Stream<CharSequence> source;
+        if (rawValue instanceof Collection) {
+          //noinspection unchecked
+          source = ((Collection<CharSequence>) rawValue).stream();
+        } else {
+          source = Stream.of((CharSequence[]) rawValue);
+        }
+
+        String text = source
+            .flatMap(Stream::of)
+            .collect(Collectors.joining());
         return ImmutableMap.<String, Object>builder()
-          .putAll(
-            parameters.entrySet().stream()
-              .filter(e -> !"value".equals(e.getKey()))
-              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))
-          .put(
-            "value",
-            stringToUtf8Array(
-              Stream.of((CharSequence[]) parameters.get("value"))
-                .flatMap(Stream::of)
-                .collect(Collectors.joining())))
-          .build();
+            .putAll(
+                parameters.entrySet().stream()
+                    .filter(e -> !"text".equals(e.getKey()))
+                    .filter(e -> !"value".equals(e.getKey()))
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))
+            .put("text", text)
+            .put("value", stringToUtf8Array(text))
+            .build();
 
       case SET_ALERT_VALUE:
         return ImmutableMap.<String, Object>builder()
+          .put("text", parameters.get("text"))
           .put("value", stringToUtf8Array((String) parameters.get("text")))
           .build();
-
-      case SET_CURRENT_WINDOW_POSITION:
-        return toScript(
-          "window.screenX = arguments[0]; window.screenY = arguments[1]",
-          parameters.get("x"),
-          parameters.get("y"));
 
       case SET_TIMEOUT:
         String timeoutType = (String) parameters.get("type");
@@ -338,7 +345,7 @@ public class W3CHttpCommandCodec extends AbstractHttpCommandCodec {
   }
 
   private String cssEscape(String using) {
-    using = using.replaceAll("(['\"\\\\#.:;,!?+<>=~*^$|%&@`{}\\-\\/\\[\\]\\(\\)])", "\\\\$1");
+    using = using.replaceAll("([\\s'\"\\\\#.:;,!?+<>=~*^$|%&@`{}\\-\\/\\[\\]\\(\\)])", "\\\\$1");
     if (using.length() > 0 && Character.isDigit(using.charAt(0))) {
       using = "\\" + Integer.toString(30 + Integer.parseInt(using.substring(0,1))) + " " + using.substring(1);
     }

@@ -32,6 +32,7 @@ java_library(name = 'drivers',
     '//java/client/test/org/openqa/selenium/testing:annotations',
     '//java/client/test/org/openqa/selenium/testing:helpers',
     '//java/server/src/org/openqa/grid/selenium:selenium',
+    '//third_party/java/github:github',
     '//third_party/java/guava:guava',
     '//third_party/java/junit:junit',
     '//third_party/java/phantomjs-driver:phantomjs-driver',
@@ -49,7 +50,7 @@ export_file(name = 'firebug',
 
 java_library(name = 'small-tests',
   srcs = [
-    'IgnoreComparitorUnitTest.java',
+    'IgnoreComparatorUnitTest.java',
   ],
   deps = [
     ':drivers',

@@ -22,7 +22,7 @@ require_relative '../spec_helper'
 module Selenium
   module WebDriver
     module Firefox
-      compliant_on browser: :ff_legacy do
+      compliant_on browser: :ff_esr do
         describe Driver do
           describe '.new' do
             before do
@@ -38,8 +38,7 @@ module Selenium
                   @opt[:profile] = profile
                   driver2 = Selenium::WebDriver.for :firefox, @opt
 
-                  stored_profile = driver2.instance_variable_get('@bridge')
-                                          .instance_variable_get('@launcher')
+                  stored_profile = driver2.instance_variable_get('@launcher')
                                           .instance_variable_get('@profile')
                   expect(stored_profile).to be == profile
                 ensure
@@ -49,7 +48,7 @@ module Selenium
             end
           end
 
-          it_behaves_like 'driver that can be started concurrently', :ff_legacy
+          it_behaves_like 'driver that can be started concurrently', :ff_esr
         end
       end
     end # Firefox

@@ -31,7 +31,6 @@ require 'rake-tasks/crazy_fun/mappings/visualstudio'
 require 'rake-tasks/task-gen'
 require 'rake-tasks/checks'
 require 'rake-tasks/dotnet'
-require 'rake-tasks/zip'
 require 'rake-tasks/c'
 require 'rake-tasks/selenium'
 require 'rake-tasks/se-ide'
@@ -46,11 +45,11 @@ end
 verbose($DEBUG)
 
 def release_version
-  "3.0"
+  "3.4"
 end
 
 def version
-  "#{release_version}.1"
+  "#{release_version}.0"
 end
 
 ide_version = "2.8.0"
@@ -115,6 +114,7 @@ JAVA_RELEASE_TARGETS = [
   '//java/client/src/org/openqa/selenium/edge:edge',
   '//java/client/src/org/openqa/selenium/firefox:firefox',
   '//java/client/src/org/openqa/selenium/ie:ie',
+  '//java/client/src/org/openqa/selenium/lift:lift',
   '//java/client/src/org/openqa/selenium/opera:opera',
   '//java/client/src/org/openqa/selenium/remote:remote',
   '//java/client/src/org/openqa/selenium/safari:safari',
@@ -136,7 +136,6 @@ task :all => [
 task :all_zip => [:'selenium-java_zip']
 task :tests => [
   "//java/client/test/org/openqa/selenium/htmlunit:htmlunit",
-  "//java/client/test/org/openqa/selenium/htmlunit:htmlunit-no-js",
   "//java/client/test/org/openqa/selenium/firefox:test-synthesized",
   "//java/client/test/org/openqa/selenium/ie:ie",
   "//java/client/test/org/openqa/selenium/chrome:chrome",
@@ -153,10 +152,6 @@ task :chrome => [ "//java/client/src/org/openqa/selenium/chrome" ]
 task :grid => [ "//java/server/src/org/openqa/grid/selenium" ]
 task :ie => [ "//java/client/src/org/openqa/selenium/ie" ]
 task :firefox => [
-  "//cpp:noblur",
-  "//cpp:noblur64",
-  "//cpp:imehandler",
-  "//cpp:imehandler64",
   "//java/client/src/org/openqa/selenium/firefox"
 ]
 task :'debug-server' => "//java/client/test/org/openqa/selenium/environment:webserver:run"
@@ -184,7 +179,6 @@ task :test_javascript => [
   'calcdeps',
   '//javascript/atoms:atoms-chrome:run',
   '//javascript/webdriver:webdriver-chrome:run',
-  '//javascript/webdriver:es6_test_chrome:run',
   '//javascript/selenium-atoms:selenium-atoms-chrome:run',
   '//javascript/selenium-core:selenium-core-chrome:run']
 task :test_chrome => [ "//java/client/test/org/openqa/selenium/chrome:chrome:run" ]
@@ -193,7 +187,6 @@ task :test_chrome_atoms => [
   '//javascript/chrome-driver:test:run',
   '//javascript/webdriver:test_chrome:run']
 task :test_htmlunit => [
-  "//java/client/test/org/openqa/selenium/htmlunit:htmlunit-no-js:run",
   "//java/client/test/org/openqa/selenium/htmlunit:htmlunit:run"
 ]
 task :test_grid => [
@@ -253,7 +246,7 @@ end
 
 task :test_java => [
   "//java/client/test/org/openqa/selenium/atoms:test:run",
-  "//java/client/test/org/openqa/selenium:small-tests:run",
+  :test_java_small_tests,
   :test_support,
   :test_java_webdriver,
   :test_selenium,
@@ -261,6 +254,7 @@ task :test_java => [
 ]
 
 task :test_java_small_tests => [
+  "//java/client/test/org/openqa/selenium:small-tests:run",
   "//java/client/test/org/openqa/selenium/support:small-tests:run",
   "//java/client/test/org/openqa/selenium/remote:common-tests:run",
   "//java/client/test/org/openqa/selenium/remote:client-tests:run",
@@ -268,21 +262,29 @@ task :test_java_small_tests => [
   "//java/server/test/org/openqa/selenium/remote/server/log:test:run",
 ]
 
-task :test_rb => [
-  "//rb:unit-test",
+task :test_rb => ["//rb:unit-test", :test_rb_local, :test_rb_remote]
+
+task :test_rb_local => [
   "//rb:chrome-test",
   "//rb:firefox-test",
   "//rb:phantomjs-test",
+  ("//rb:ff-esr-test" if ENV['FF_ESR_BINARY']),
+  ("//rb:ff-nightly-test" if ENV['FF_NIGHTLY_BINARY']),
+  ("//rb:safari-preview-test" if mac?),
+  ("//rb:safari-test" if mac?),
+  ("//rb:ie-test" if windows?),
+  ("//rb:edge-test" if windows?)
+].compact
+
+task :test_rb_remote => [
   "//rb:remote-chrome-test",
   "//rb:remote-firefox-test",
   "//rb:remote-phantomjs-test",
-  ("//rb:ff-legacy-test" if ENV['FF_LEGACY_BINARY']),
-  ("//rb:remote-ff-legacy-test" if ENV['FF_LEGACY_BINARY']),
-  ("//rb:safari-test" if mac?),
+  ("//rb:remote-ff-esr-test" if ENV['FF_ESR_BINARY']),
+  ("//rb:remote-ff-nightly-test" if ENV['FF_NIGHTLY_BINARY']),
+  ("//rb:remote-safari-preview-test" if mac?),
   ("//rb:remote-safari-test" if mac?),
-  ("//rb:ie-test" if windows?),
   ("//rb:remote-ie-test" if windows?),
-  ("//rb:edge-test" if windows?),
   ("//rb:remote-edge-test" if windows?)
 ].compact
 
@@ -327,7 +329,7 @@ ie_generate_type_mapping(:name => "ie_result_type_java",
                          :out => "java/client/src/org/openqa/selenium/ie/IeReturnTypes.java")
 
 
-task :javadocs => [:common, :firefox, :ie, :remote, :support, :chrome, :selenium] do
+task :javadocs => [:'repack-jetty', :common, :firefox, :ie, :remote, :support, :chrome, :selenium] do
   mkdir_p "build/javadoc"
    sourcepath = ""
    classpath = '.'
@@ -360,10 +362,7 @@ task :py_docs => "//py:docs"
 task :py_install =>  "//py:install"
 
 task :py_release => :py_prep_for_install_release do
-    sh "grep -v test setup.py > setup_release.py; mv setup_release.py setup.py"
-    sh "python setup.py sdist upload"
-    sh "python setup.py bdist_wheel upload"
-    sh "git checkout setup.py"
+    sh "python setup.py sdist bdist_wheel upload"
 end
 
 file "cpp/iedriver/sizzle.h" => [ "//third_party/js/sizzle:sizzle:header" ] do
@@ -422,44 +421,15 @@ desc "Calculate dependencies required for testing the automation atoms"
 task :calcdeps => "build/javascript/deps.js"
 
 desc "Repack jetty"
-task "repack-jetty" => "build/third_party/java/jetty/jetty-repacked.jar"
+task "repack-jetty" => ["//third_party/java/jetty:bundle-jars"] do
 
-# Expose the repack task to CrazyFun.
-task "//third_party/java/jetty:repacked" => "build/third_party/java/jetty/jetty-repacked.jar"
+  # For IntelliJ
+  root = File.join("build", "third_party", "java", "jetty")
+  mkdir_p root
+  cp Rake::Task['//third_party/java/jetty:bundle-jars'].out, File.join(root, "jetty-repacked.jar")
 
-file "build/third_party/java/jetty/jetty-repacked.jar" => [
-   "third_party/java/jetty/jetty-continuation-9.2.13.v20150730.jar",
-   "third_party/java/jetty/jetty-http-9.2.13.v20150730.jar",
-   "third_party/java/jetty/jetty-io-9.2.13.v20150730.jar",
-   "third_party/java/jetty/jetty-jmx-9.2.13.v20150730.jar",
-   "third_party/java/jetty/jetty-security-9.2.13.v20150730.jar",
-   "third_party/java/jetty/jetty-server-9.2.13.v20150730.jar",
-   "third_party/java/jetty/jetty-servlet-9.2.13.v20150730.jar",
-   "third_party/java/jetty/jetty-servlets-9.2.13.v20150730.jar",
-   "third_party/java/jetty/jetty-util-9.2.13.v20150730.jar"
- ] do |t|
-   print "Repacking jetty\n"
-   root = File.join("build", "third_party", "java", "jetty")
-   jarjar = File.join("third_party", "java", "jarjar", "jarjar-1.4.jar")
-   rules = File.join("third_party", "java", "jetty", "jetty-repack-rules")
-   temp = File.join(root, "temp")
-
-   # First, process the files
-   mkdir_p root
-   mkdir_p temp
-
-   t.prerequisites.each do |pre|
-     filename = File.basename(pre, ".jar")
-     out = File.join(root, "#{filename}-repacked.jar")
-     `java -jar #{jarjar} process #{rules} #{pre} #{out}`
-     `cd #{temp} && jar xf #{File.join("..", File.basename(out))}`
-   end
-
-   # Now, merge them
-   `cd #{temp} && jar cvf #{File.join("..", "jetty-repacked.jar")} *`
-
-   # And copy the artifact to third_party so that eclipse users can be made happy
-   cp "build/third_party/java/jetty/jetty-repacked.jar", "third_party/java/jetty/jetty-repacked.jar"
+  # And copy the artifact to third_party so that eclipse users can be made happy
+  cp Rake::Task['//third_party/java/jetty:bundle-jars'].out, "third_party/java/jetty/jetty-repacked.jar"
 end
 
 
@@ -526,7 +496,7 @@ task :'publish-maven' do
   creds = read_user_pass_from_m2_settings()
   JAVA_RELEASE_TARGETS.each do |p|
     if JAVA_RELEASE_TARGETS.include?(p)
-      Buck::buck_cmd.call('publish', ['--remote-repo', 'https://oss.sonatype.org/service/local/staging/deploy/maven2', '--include-source', '--include-javadoc', '-u', creds[0], '-p', creds[1], '--signing-passphrase', passphrase, p])
+      Buck::buck_cmd.call('publish', ['--remote-repo', 'https://oss.sonatype.org/service/local/staging/deploy/maven2', '--include-source', '--include-docs', '-u', creds[0], '-p', creds[1], '--signing-passphrase', passphrase, p])
     end
   end
 end
@@ -534,7 +504,7 @@ end
 task :'maven-install' do
   JAVA_RELEASE_TARGETS.each do |p|
     if JAVA_RELEASE_TARGETS.include?(p)
-      Buck::buck_cmd.call('publish', ['--remote-repo', "file://#{ENV['HOME']}/.m2/repository", '--include-source', '--include-javadoc', p])
+      Buck::buck_cmd.call('publish', ['--remote-repo', "file://#{ENV['HOME']}/.m2/repository", '--include-source', '--include-docs', p])
     end
   end
 end
@@ -557,21 +527,39 @@ task :release_ide  => [:ide] do
 end
 
 namespace :node do
+  task :atoms => [
+    "//javascript/atoms/fragments:is-displayed",
+    "//javascript/webdriver/atoms:getAttribute",
+  ] do
+    baseDir = "javascript/node/selenium-webdriver/lib/atoms"
+    mkdir_p baseDir
+
+    [
+      Rake::Task["//javascript/atoms/fragments:is-displayed"].out,
+      Rake::Task["//javascript/webdriver/atoms:getAttribute"].out,
+    ].each do |atom|
+      name = File.basename(atom)
+
+      puts "Generating #{atom} as #{name}"
+      File.open(File.join(baseDir, name), "w") do |f|
+        f << "// GENERATED CODE - DO NOT EDIT\n"
+        f << "module.exports = "
+        f << IO.read(atom).strip
+        f << ";\n"
+      end
+    end
+  end
+
   task :deploy => [
-    "//cpp:noblur",
-    "//cpp:noblur64",
+    "node:atoms",
     "//javascript/firefox-driver:webdriver",
-    "//javascript/safari-driver:client",
   ] do
     cmd =  "node javascript/node/deploy.js" <<
         " --output=build/javascript/node/selenium-webdriver" <<
         " --resource=LICENSE:/LICENSE" <<
         " --resource=NOTICE:/NOTICE" <<
         " --resource=javascript/firefox-driver/webdriver.json:firefox/webdriver.json" <<
-        " --resource=build/cpp/amd64/libnoblur64.so:firefox/amd64/libnoblur64.so" <<
-        " --resource=build/cpp/i386/libnoblur.so:firefox/i386/libnoblur.so" <<
         " --resource=build/javascript/firefox-driver/webdriver.xpi:firefox/webdriver.xpi" <<
-        " --resource=buck-out/gen/javascript/safari-driver/client.js:safari/client.js" <<
         " --resource=common/src/web/:test/data/" <<
         " --exclude_resource=common/src/web/Bin" <<
         " --exclude_resource=.gitignore" <<
@@ -590,55 +578,6 @@ namespace :safari do
   task :build => [
     "//java/client/src/org/openqa/selenium/safari"
   ]
-end
-
-namespace :marionette do
-  atoms_file = "build/javascript/marionette/atoms.js"
-  func_lookup = {"//javascript/atoms/fragments:clear:firefox" => "clearElement",
-                 "//javascript/webdriver/atoms/fragments:get_attribute:firefox" => "getElementAttribute",
-                 "//javascript/webdriver/atoms/fragments:get_text:firefox" => "getElementText",
-                 "//javascript/atoms/fragments:is_enabled:firefox" => "isElementEnabled",
-                 "//javascript/webdriver/atoms/fragments:is_selected:firefox" => "isElementSelected",
-                 "//javascript/atoms/fragments:is_displayed:firefox" => "isElementDisplayed"}
-
-  # This task takes all the relevant Marionette atom dependencies
-  # (listed in func_lookup) and concatenates them to a single atoms.js
-  # file.
-  #
-  # The function names are defined in the func_lookup dictionary of
-  # target to name.
-  #
-  # Instead of having this custom behaviour in Selenium, Marionette
-  # should use the individually generated .js atom files directly in
-  # the future.
-  #
-  # (See Mozilla bug 936204.)
-
-  desc "Generate Marionette atoms"
-  task :atoms => func_lookup.keys do |task|
-    b = StringIO.new
-    b << File.read("javascript/marionette/COPYING") << "\n"
-    b << "\n"
-    b << "const EXPORTED_SYMBOLS = [\"atoms\"];" << "\n"
-    b << "\n"
-    b << "function atoms() {};" << "\n"
-    b << "\n"
-
-    task.prerequisites.each do |target|
-      out = Rake::Task[target].out
-      atom = File.read(out).chop
-
-      b << "// target #{target}" << "\n"
-      b << "atoms.#{func_lookup[target]} = #{atom};" << "\n"
-      b << "\n"
-    end
-
-    puts "Generating uberatoms file: #{atoms_file}"
-    FileUtils.mkpath("build/javascript/marionette")
-    File.open("build/javascript/marionette/atoms.js", "w+") do |h|
-      h.write(b.string)
-    end
-  end
 end
 
 task :authors do

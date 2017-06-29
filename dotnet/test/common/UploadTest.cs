@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using OpenQA.Selenium.Environment;
 
 namespace OpenQA.Selenium
 {
@@ -40,7 +41,11 @@ namespace OpenQA.Selenium
 
             driver.SwitchTo().Frame("upload_target");
 
-            IWebElement body = driver.FindElement(By.XPath("//body"));
+            IWebElement body = null;
+            WaitFor(() => {
+                body = driver.FindElement(By.XPath("//body"));
+                return LoremIpsumText == body.Text;
+            }, "Page source is: " + driver.PageSource);
             Assert.IsTrue(LoremIpsumText == body.Text, "Page source is: " + driver.PageSource);
             driver.Url = "about:blank";
         }
@@ -48,7 +53,6 @@ namespace OpenQA.Selenium
         [Test]
         [Category("Javascript")]
         [IgnoreBrowser(Browser.WindowsPhone, "Does not yet support file uploads")]
-        //[IgnoreBrowser(Browser.IE, "Transparent file upload element not yet handled")]
         public void ShouldAllowFileUploadingUsingTransparentUploadElement()
         {
             if (TestUtilities.IsMarionette(driver))
@@ -62,14 +66,19 @@ namespace OpenQA.Selenium
 
             driver.SwitchTo().Frame("upload_target");
 
-            IWebElement body = driver.FindElement(By.XPath("//body"));
+            IWebElement body = null;
+            WaitFor(() => {
+                body = driver.FindElement(By.XPath("//body"));
+                return LoremIpsumText == body.Text;
+            }, "Page source is: " + driver.PageSource);
             Assert.IsTrue(LoremIpsumText == body.Text, "Page source is: " + driver.PageSource);
             driver.Url = "about:blank";
         }
 
         private void CreateTempFile(string content)
         {
-            testFile = new System.IO.FileInfo("webdriver.tmp");
+            string testFileName = System.IO.Path.Combine(EnvironmentManager.Instance.CurrentDirectory, "webdriver.tmp");
+            testFile = new System.IO.FileInfo(testFileName);
             if (testFile.Exists)
             {
                 testFile.Delete();

@@ -27,6 +27,7 @@ import static org.junit.Assume.assumeTrue;
 import static org.openqa.selenium.WaitingConditions.elementTextToEqual;
 import static org.openqa.selenium.WaitingConditions.elementValueToEqual;
 import static org.openqa.selenium.WaitingConditions.windowToBeSwitchedToWithName;
+import static org.openqa.selenium.remote.CapabilityType.SUPPORTS_JAVASCRIPT;
 import static org.openqa.selenium.support.ui.ExpectedConditions.titleIs;
 import static org.openqa.selenium.testing.Driver.MARIONETTE;
 import static org.openqa.selenium.testing.Driver.SAFARI;
@@ -37,15 +38,11 @@ import org.openqa.selenium.internal.Locatable;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.testing.Ignore;
 import org.openqa.selenium.testing.JUnit4TestBase;
-import org.openqa.selenium.testing.JavascriptEnabled;
 import org.openqa.selenium.testing.NeedsFreshDriver;
+import org.openqa.selenium.testing.NotYetImplemented;
 
-/**
- * Test case for browsers that support using Javascript
- */
 public class JavascriptEnabledDriverTest extends JUnit4TestBase {
 
-  @JavascriptEnabled
   @Test
   public void testDocumentShouldReflectLatestTitle() throws Exception {
     driver.get(pages.javascriptPage);
@@ -56,7 +53,6 @@ public class JavascriptEnabledDriverTest extends JUnit4TestBase {
     assertThat(driver.getTitle(), equalTo("Changed"));
   }
 
-  @JavascriptEnabled
   @Test
   @Ignore(MARIONETTE)
   public void testDocumentShouldReflectLatestDom() throws Exception {
@@ -73,8 +69,6 @@ public class JavascriptEnabledDriverTest extends JUnit4TestBase {
     assertThat(dynamo.getText(), equalTo("Fish and chips!"));
   }
 
-  @JavascriptEnabled
-  @Ignore(value = {MARIONETTE})
   @Test
   public void testShouldWaitForLoadsToCompleteAfterJavascriptCausesANewPageToLoad() {
     driver.get(pages.formPage);
@@ -85,8 +79,6 @@ public class JavascriptEnabledDriverTest extends JUnit4TestBase {
     assertThat(driver.getTitle(), equalTo("Page3"));
   }
 
-  @JavascriptEnabled
-  @Ignore(value = {MARIONETTE})
   @Test
   public void testShouldBeAbleToFindElementAfterJavascriptCausesANewPageToLoad() {
     driver.get(pages.formPage);
@@ -97,9 +89,7 @@ public class JavascriptEnabledDriverTest extends JUnit4TestBase {
     assertThat(driver.findElement(By.id("pageNumber")).getText(), equalTo("3"));
   }
 
-  @JavascriptEnabled
   @Test
-  @Ignore(MARIONETTE)
   public void testShouldFireOnChangeEventWhenSettingAnElementsValue() {
     driver.get(pages.javascriptPage);
     driver.findElement(By.id("change")).sendKeys("foo");
@@ -108,7 +98,6 @@ public class JavascriptEnabledDriverTest extends JUnit4TestBase {
     assertThat(result, equalTo("change"));
   }
 
-  @JavascriptEnabled
   @Test
   public void testShouldBeAbleToSubmitFormsByCausingTheOnClickEventToFire() {
     driver.get(pages.javascriptPage);
@@ -124,7 +113,6 @@ public class JavascriptEnabledDriverTest extends JUnit4TestBase {
     wait.until(titleIs(newTitle));
   }
 
-  @JavascriptEnabled
   @Test
   public void testShouldBeAbleToClickOnSubmitButtons() {
     driver.get(pages.javascriptPage);
@@ -136,7 +124,6 @@ public class JavascriptEnabledDriverTest extends JUnit4TestBase {
     assertThat(driver.getTitle(), is("We Arrive Here"));
   }
 
-  @JavascriptEnabled
   @Test
   public void testIssue80ClickShouldGenerateClickEvent() {
     driver.get(pages.javascriptPage);
@@ -150,9 +137,7 @@ public class JavascriptEnabledDriverTest extends JUnit4TestBase {
     assertEquals("Clicked", elementValue);
   }
 
-  @JavascriptEnabled
   @Test
-  @Ignore(MARIONETTE)
   public void testShouldBeAbleToSwitchToFocusedElement() {
     driver.get(pages.javascriptPage);
 
@@ -162,9 +147,7 @@ public class JavascriptEnabledDriverTest extends JUnit4TestBase {
     assertThat(element.getAttribute("id"), is("theworks"));
   }
 
-  @JavascriptEnabled
   @Test
-  @Ignore(MARIONETTE)
   public void testIfNoElementHasFocusTheActiveElementIsTheBody() {
     driver.get(pages.simpleTestPage);
 
@@ -173,9 +156,8 @@ public class JavascriptEnabledDriverTest extends JUnit4TestBase {
     assertThat(element.getAttribute("name"), is("body"));
   }
 
-  @JavascriptEnabled
-  @Ignore(value = {SAFARI, MARIONETTE}, reason = " Safari: issue 4061. Other platforms: not properly tested")
   @Test
+  @Ignore(value = SAFARI, reason = "issue 4061")
   public void testChangeEventIsFiredAppropriatelyWhenFocusIsLost() {
     driver.get(pages.javascriptPage);
 
@@ -199,7 +181,6 @@ public class JavascriptEnabledDriverTest extends JUnit4TestBase {
   /**
    * If the click handler throws an exception, the firefox driver freezes. This is suboptimal.
    */
-  @JavascriptEnabled
   @Test
   public void testShouldBeAbleToClickIfEvenSomethingHorribleHappens() {
     driver.get(pages.javascriptPage);
@@ -215,7 +196,7 @@ public class JavascriptEnabledDriverTest extends JUnit4TestBase {
   @Test
   public void testShouldBeAbleToGetTheLocationOfAnElement() {
     assumeTrue(driver instanceof JavascriptExecutor);
-    assumeTrue(((HasCapabilities) driver).getCapabilities().isJavascriptEnabled());
+    assumeTrue(((HasCapabilities) driver).getCapabilities().is(SUPPORTS_JAVASCRIPT));
 
     driver.get(pages.javascriptPage);
 
@@ -240,10 +221,10 @@ public class JavascriptEnabledDriverTest extends JUnit4TestBase {
    * running: "ImplicitWaitTest", "TemporaryFilesystemTest", "JavascriptEnabledDriverTest".
    * SimonStewart 2010-10-04
    */
-  @Ignore(value = {SAFARI, MARIONETTE}, reason = "Safari: issue 3693")
-  @JavascriptEnabled
   @NeedsFreshDriver
   @Test
+  @Ignore(value = SAFARI, reason = "issue 3693")
+  @Ignore(value = MARIONETTE, issue = "https://github.com/mozilla/geckodriver/issues/611")
   public void testShouldBeAbleToClickALinkThatClosesAWindow() throws Exception {
     driver.get(pages.javascriptPage);
 

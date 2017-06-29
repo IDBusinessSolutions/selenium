@@ -17,31 +17,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-require 'selenium/webdriver/ie/bridge'
+require 'selenium/webdriver/ie/driver'
 require 'selenium/webdriver/ie/service'
 
 module Selenium
   module WebDriver
     module IE
-      MISSING_TEXT = <<-ERROR.tr("\n", '').freeze
-        Unable to find IEDriverServer. Please download the server from
-        http://selenium-release.storage.googleapis.com/index.html and place it
-        somewhere on your PATH. More info at https://github.com/SeleniumHQ/selenium/wiki/InternetExplorerDriver.
-      ERROR
-
       def self.driver_path=(path)
         Platform.assert_executable path
         @driver_path = path
       end
 
       def self.driver_path
-        @driver_path ||= begin
-          path = Platform.find_binary('IEDriverServer')
-          raise Error::WebDriverError, MISSING_TEXT unless path
-          Platform.assert_executable path
-
-          path
-        end
+        @driver_path ||= nil
       end
     end # IE
   end # WebDriver

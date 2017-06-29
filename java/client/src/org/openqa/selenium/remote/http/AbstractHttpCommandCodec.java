@@ -26,12 +26,10 @@ import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
 import static com.google.common.net.MediaType.JSON_UTF_8;
 import static org.openqa.selenium.remote.DriverCommand.ADD_COOKIE;
 import static org.openqa.selenium.remote.DriverCommand.CLEAR_ELEMENT;
-import static org.openqa.selenium.remote.DriverCommand.CLICK;
 import static org.openqa.selenium.remote.DriverCommand.CLICK_ELEMENT;
 import static org.openqa.selenium.remote.DriverCommand.CLOSE;
 import static org.openqa.selenium.remote.DriverCommand.DELETE_ALL_COOKIES;
 import static org.openqa.selenium.remote.DriverCommand.DELETE_COOKIE;
-import static org.openqa.selenium.remote.DriverCommand.DOUBLE_CLICK;
 import static org.openqa.selenium.remote.DriverCommand.ELEMENT_EQUALS;
 import static org.openqa.selenium.remote.DriverCommand.ELEMENT_SCREENSHOT;
 import static org.openqa.selenium.remote.DriverCommand.FIND_CHILD_ELEMENT;
@@ -74,14 +72,10 @@ import static org.openqa.selenium.remote.DriverCommand.IMPLICITLY_WAIT;
 import static org.openqa.selenium.remote.DriverCommand.IS_BROWSER_ONLINE;
 import static org.openqa.selenium.remote.DriverCommand.IS_ELEMENT_ENABLED;
 import static org.openqa.selenium.remote.DriverCommand.IS_ELEMENT_SELECTED;
-import static org.openqa.selenium.remote.DriverCommand.MOUSE_DOWN;
-import static org.openqa.selenium.remote.DriverCommand.MOUSE_UP;
-import static org.openqa.selenium.remote.DriverCommand.MOVE_TO;
 import static org.openqa.selenium.remote.DriverCommand.NEW_SESSION;
 import static org.openqa.selenium.remote.DriverCommand.QUIT;
 import static org.openqa.selenium.remote.DriverCommand.REFRESH;
 import static org.openqa.selenium.remote.DriverCommand.SCREENSHOT;
-import static org.openqa.selenium.remote.DriverCommand.SEND_KEYS_TO_ACTIVE_ELEMENT;
 import static org.openqa.selenium.remote.DriverCommand.SEND_KEYS_TO_ELEMENT;
 import static org.openqa.selenium.remote.DriverCommand.SET_ALERT_CREDENTIALS;
 import static org.openqa.selenium.remote.DriverCommand.SET_BROWSER_ONLINE;
@@ -96,22 +90,11 @@ import static org.openqa.selenium.remote.DriverCommand.SWITCH_TO_CONTEXT;
 import static org.openqa.selenium.remote.DriverCommand.SWITCH_TO_FRAME;
 import static org.openqa.selenium.remote.DriverCommand.SWITCH_TO_PARENT_FRAME;
 import static org.openqa.selenium.remote.DriverCommand.SWITCH_TO_WINDOW;
-import static org.openqa.selenium.remote.DriverCommand.TOUCH_DOUBLE_TAP;
-import static org.openqa.selenium.remote.DriverCommand.TOUCH_DOWN;
-import static org.openqa.selenium.remote.DriverCommand.TOUCH_FLICK;
-import static org.openqa.selenium.remote.DriverCommand.TOUCH_LONG_PRESS;
-import static org.openqa.selenium.remote.DriverCommand.TOUCH_MOVE;
-import static org.openqa.selenium.remote.DriverCommand.TOUCH_SCROLL;
-import static org.openqa.selenium.remote.DriverCommand.TOUCH_SINGLE_TAP;
-import static org.openqa.selenium.remote.DriverCommand.TOUCH_UP;
 import static org.openqa.selenium.remote.DriverCommand.UPLOAD_FILE;
 
 import com.google.common.base.Objects;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
-import com.google.common.collect.BiMap;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
@@ -122,10 +105,11 @@ import org.openqa.selenium.remote.Command;
 import org.openqa.selenium.remote.CommandCodec;
 import org.openqa.selenium.remote.JsonToBeanConverter;
 import org.openqa.selenium.remote.SessionId;
+import org.openqa.selenium.remote.internal.JsonToWebElementConverter;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * A command codec that adheres to the W3C's WebDriver wire protocol.
@@ -136,10 +120,11 @@ public abstract class AbstractHttpCommandCodec implements CommandCodec<HttpReque
   private static final Splitter PATH_SPLITTER = Splitter.on('/').omitEmptyStrings();
   private static final String SESSION_ID_PARAM = "sessionId";
 
-  private final BiMap<String, CommandSpec> nameToSpec = HashBiMap.create();
+  private final ConcurrentHashMap<String, CommandSpec> nameToSpec = new ConcurrentHashMap<>();
   private final Map<String, String> aliases = new HashMap<>();
   private final BeanToJsonConverter beanToJsonConverter = new BeanToJsonConverter();
   private final JsonToBeanConverter jsonToBeanConverter = new JsonToBeanConverter();
+  private final JsonToWebElementConverter elementConverter = new JsonToWebElementConverter(null);
 
   public AbstractHttpCommandCodec() {
     defineCommand(STATUS, get("/status"));
@@ -215,22 +200,6 @@ public abstract class AbstractHttpCommandCodec implements CommandCodec<HttpReque
     defineCommand(GET_SCREEN_ROTATION, get("/session/:sessionId/rotation"));
     defineCommand(SET_SCREEN_ROTATION, post("/session/:sessionId/rotation"));
 
-    // Interactions-related commands.
-    defineCommand(MOUSE_DOWN, post("/session/:sessionId/buttondown"));
-    defineCommand(MOUSE_UP, post("/session/:sessionId/buttonup"));
-    defineCommand(CLICK, post("/session/:sessionId/click"));
-    defineCommand(DOUBLE_CLICK, post("/session/:sessionId/doubleclick"));
-    defineCommand(MOVE_TO, post("/session/:sessionId/moveto"));
-    defineCommand(SEND_KEYS_TO_ACTIVE_ELEMENT, post("/session/:sessionId/keys"));
-    defineCommand(TOUCH_SINGLE_TAP, post("/session/:sessionId/touch/click"));
-    defineCommand(TOUCH_DOUBLE_TAP, post("/session/:sessionId/touch/doubleclick"));
-    defineCommand(TOUCH_DOWN, post("/session/:sessionId/touch/down"));
-    defineCommand(TOUCH_FLICK, post("/session/:sessionId/touch/flick"));
-    defineCommand(TOUCH_LONG_PRESS, post("/session/:sessionId/touch/longclick"));
-    defineCommand(TOUCH_MOVE, post("/session/:sessionId/touch/move"));
-    defineCommand(TOUCH_SCROLL, post("/session/:sessionId/touch/scroll"));
-    defineCommand(TOUCH_UP, post("/session/:sessionId/touch/up"));
-
     defineCommand(IME_GET_AVAILABLE_ENGINES, get("/session/:sessionId/ime/available_engines"));
     defineCommand(IME_GET_ACTIVE_ENGINE, get("/session/:sessionId/ime/active_engine"));
     defineCommand(IME_IS_ACTIVATED, get("/session/:sessionId/ime/activated"));
@@ -281,29 +250,32 @@ public abstract class AbstractHttpCommandCodec implements CommandCodec<HttpReque
     final String path = Strings.isNullOrEmpty(encodedCommand.getUri())
                         ? "/" : encodedCommand.getUri();
     final ImmutableList<String> parts = ImmutableList.copyOf(PATH_SPLITTER.split(path));
-    List<CommandSpec> matchingSpecs = FluentIterable.from(nameToSpec.inverse().keySet())
-        .filter(spec -> {
-          return spec.isFor(encodedCommand.getMethod(), parts);
-        })
-        .toSortedList((a, b) -> a.pathSegments.size() - b.pathSegments.size());
-
-    if (matchingSpecs.isEmpty()) {
+    int minPathLength = Integer.MAX_VALUE;
+    CommandSpec spec = null;
+    String name = null;
+    for (Map.Entry<String, CommandSpec> nameValue : nameToSpec.entrySet()) {
+      if ((nameValue.getValue().pathSegments.size() < minPathLength)
+          && nameValue.getValue().isFor(encodedCommand.getMethod(), parts)) {
+        name = nameValue.getKey();
+        spec = nameValue.getValue();
+      }
+    }
+    if (name == null) {
       throw new UnsupportedCommandException(
           encodedCommand.getMethod() + " " + encodedCommand.getUri());
     }
-    CommandSpec spec = matchingSpecs.get(0);
-
     Map<String, Object> parameters = Maps.newHashMap();
     spec.parsePathParameters(parts, parameters);
 
     String content = encodedCommand.getContentString();
     if (!content.isEmpty()) {
       @SuppressWarnings("unchecked")
-      HashMap<String, ?> tmp = jsonToBeanConverter.convert(HashMap.class, content);
+      Map<String, ?> tmp = jsonToBeanConverter.convert(HashMap.class, content);
+      //noinspection unchecked
+      tmp = (Map<String, ?>) elementConverter.apply(tmp);
       parameters.putAll(tmp);
     }
 
-    String name = nameToSpec.inverse().get(spec);
     SessionId sessionId = null;
     if (parameters.containsKey(SESSION_ID_PARAM)) {
       String id = (String) parameters.remove(SESSION_ID_PARAM);

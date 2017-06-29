@@ -214,7 +214,7 @@ public class ErrorHandlerTest {
     }
   }
 
-  @SuppressWarnings({"unchecked", "ThrowableInstanceNeverThrown"})
+  @SuppressWarnings("ThrowableInstanceNeverThrown")
   @Test
   public void testShouldBeAbleToRebuildASerializedException() throws Exception {
     RuntimeException serverError = new RuntimeException("foo bar baz!\nCommand duration or timeout: 123 milliseconds");
@@ -238,7 +238,7 @@ public class ErrorHandlerTest {
     }
   }
 
-  @SuppressWarnings({"unchecked", "ThrowableInstanceNeverThrown"})
+  @SuppressWarnings("ThrowableInstanceNeverThrown")
   @Test
   public void testShouldIncludeScreenshotIfProvided() throws Exception {
     RuntimeException serverError = new RuntimeException("foo bar baz!");
@@ -249,7 +249,8 @@ public class ErrorHandlerTest {
       handler.throwIfResponseFailed(createResponse(ErrorCodes.UNHANDLED_ERROR, data), 123);
       fail("Should have thrown!");
     } catch (WebDriverException expected) {
-      assertEquals(new WebDriverException(serverError.getMessage() + "\nCommand duration or timeout: 123 milliseconds").getMessage(),
+      assertEquals(new WebDriverException(serverError.getMessage() + "\nCommand duration or timeout: 123 milliseconds",
+                                          new WebDriverException()).getMessage(),
           expected.getMessage());
 
       Throwable cause = expected.getCause();
@@ -265,7 +266,7 @@ public class ErrorHandlerTest {
     }
   }
 
-  @SuppressWarnings({"unchecked", "ThrowableInstanceNeverThrown"})
+  @SuppressWarnings("ThrowableInstanceNeverThrown")
   @Test
   public void testShouldDefaultToWebDriverExceptionIfClassIsNotSpecified()
       throws Exception {
@@ -277,7 +278,8 @@ public class ErrorHandlerTest {
       handler.throwIfResponseFailed(createResponse(ErrorCodes.UNHANDLED_ERROR, data), 123);
       fail("Should have thrown!");
     } catch (WebDriverException expected) {
-      assertEquals(new WebDriverException(serverError.getMessage() + "\nCommand duration or timeout: 123 milliseconds").getMessage(),
+      assertEquals(new WebDriverException(serverError.getMessage() + "\nCommand duration or timeout: 123 milliseconds",
+                                          new WebDriverException()).getMessage(),
           expected.getMessage());
 
       Throwable cause = expected.getCause();
@@ -289,7 +291,7 @@ public class ErrorHandlerTest {
     }
   }
 
-  @SuppressWarnings({"unchecked", "ThrowableInstanceNeverThrown"})
+  @SuppressWarnings("ThrowableInstanceNeverThrown")
   @Test
   public void testShouldStillTryToBuildWebDriverExceptionIfClassIsNotProvidedAndStackTraceIsNotForJava() {
     Map<String, ?> data = ImmutableMap.of(
@@ -304,7 +306,8 @@ public class ErrorHandlerTest {
       handler.throwIfResponseFailed(createResponse(ErrorCodes.UNHANDLED_ERROR, data), 123);
       fail("Should have thrown!");
     } catch (WebDriverException expected) {
-      assertEquals(new WebDriverException("some error message\nCommand duration or timeout: 123 milliseconds").getMessage(),
+      assertEquals(new WebDriverException("some error message\nCommand duration or timeout: 123 milliseconds",
+                                          new WebDriverException()).getMessage(),
           expected.getMessage());
 
       StackTraceElement[] expectedTrace = {
@@ -323,7 +326,7 @@ public class ErrorHandlerTest {
     }
   }
 
-  @SuppressWarnings({"unchecked", "ThrowableInstanceNeverThrown"})
+  @SuppressWarnings("ThrowableInstanceNeverThrown")
   @Test
   public void testToleratesNonNumericLineNumber() {
     Map<String, ?> data = ImmutableMap.of(
@@ -338,7 +341,8 @@ public class ErrorHandlerTest {
       handler.throwIfResponseFailed(createResponse(ErrorCodes.UNHANDLED_ERROR, data), 123);
       fail("Should have thrown!");
     } catch (WebDriverException expected) {
-      assertEquals(new WebDriverException("some error message\nCommand duration or timeout: 123 milliseconds").getMessage(),
+      assertEquals(new WebDriverException("some error message\nCommand duration or timeout: 123 milliseconds",
+                                          new WebDriverException()).getMessage(),
           expected.getMessage());
 
       StackTraceElement[] expectedTrace = {
@@ -357,7 +361,7 @@ public class ErrorHandlerTest {
     }
   }
 
-  @SuppressWarnings({"unchecked", "ThrowableInstanceNeverThrown"})
+  @SuppressWarnings("ThrowableInstanceNeverThrown")
   @Test
   public void testToleratesNumericLineNumberAsString() {
     Map<String, ?> data = ImmutableMap.of(
@@ -372,7 +376,8 @@ public class ErrorHandlerTest {
       handler.throwIfResponseFailed(createResponse(ErrorCodes.UNHANDLED_ERROR, data), 123);
       fail("Should have thrown!");
     } catch (WebDriverException expected) {
-      assertEquals(new WebDriverException("some error message\nCommand duration or timeout: 123 milliseconds").getMessage(),
+      assertEquals(new WebDriverException("some error message\nCommand duration or timeout: 123 milliseconds",
+                                          new WebDriverException()).getMessage(),
           expected.getMessage());
 
       StackTraceElement[] expectedTrace = {
@@ -391,7 +396,7 @@ public class ErrorHandlerTest {
     }
   }
 
-  @SuppressWarnings({"unchecked", "ThrowableInstanceNeverThrown"})
+  @SuppressWarnings("ThrowableInstanceNeverThrown")
   @Test
   public void testShouldIndicateWhenTheServerReturnedAnExceptionThatWasSuppressed()
       throws Exception {
@@ -410,7 +415,7 @@ public class ErrorHandlerTest {
     }
   }
 
-  @SuppressWarnings({"unchecked", "ThrowableInstanceNeverThrown"})
+  @SuppressWarnings("ThrowableInstanceNeverThrown")
   @Test
   public void testShouldStillIncludeScreenshotEvenIfServerSideExceptionsAreDisabled()
       throws Exception {
@@ -436,7 +441,7 @@ public class ErrorHandlerTest {
 
   @Test
   public void testStatusCodesRaisedBackToStatusMatches() {
-    Map<Integer, Class> exceptions = new HashMap<>();
+    Map<Integer, Class<?>> exceptions = new HashMap<>();
     exceptions.put(ErrorCodes.NO_SUCH_SESSION, NoSuchSessionException.class);
     exceptions.put(ErrorCodes.NO_SUCH_ELEMENT, NoSuchElementException.class);
     exceptions.put(ErrorCodes.NO_SUCH_FRAME, NoSuchFrameException.class);
@@ -465,7 +470,7 @@ public class ErrorHandlerTest {
     exceptions.put(ErrorCodes.INVALID_XPATH_SELECTOR_RETURN_TYPER, InvalidSelectorException.class);
 
     Set<String> collectedFailures = new HashSet<>();
-    for (Map.Entry<Integer, Class> exception : exceptions.entrySet()) {
+    for (Map.Entry<Integer, Class<?>> exception : exceptions.entrySet()) {
       try {
         handler.throwIfResponseFailed(createResponse(exception.getKey()), 123);
         fail("Should have thrown an Exception");

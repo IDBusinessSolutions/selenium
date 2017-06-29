@@ -1,3 +1,91 @@
+Selenium 3.4.3
+* Fix EventFiringWebdriver and WebElement to raise AttributeError on missing attributes. (#4107)
+* unwrap WebElements inside dicts
+
+Selenium 3.4.2
+
+* translate move_by_offset command to w3c
+* Update capabilities properly instead of assuming dict structure. Fixes #3927
+* Add missing file for Chrome options to API docs.
+* Add Chrome options module to API docs.
+
+Selenium 3.4.1
+* Add back the ability to set profile when using Firefox 45ESR. Fixes #3897
+
+Selenium 3.4.0
+* Correct usage of newSession around `firstMatch` and `alwaysMatch`
+* Remove superfluous capabilities that are not needed
+* Add expected condition that waits for all found elements to be visible (#3532)
+* Allow methods wrapped by EventFiringWebDriver and EventFiringWebElement (#806)
+* Dropping `javascriptEnabled` capability for real browsers
+* Use W3C check from parent object instead of assuming from capabilities
+* Bump example source distribution to match latest release.
+* Replace TypeError with KeyError in remote webdriver error handler code (#3826)
+* When testing Marionette use default capabilities in testing
+* Conform to the api of urllib2 for adding header for a request (#3803)
+* Add `text` key to alert#sendKeys parameters for W3C Endpoint
+* Location once scrolled into view should use W3C executeScript endpoint not JSONWP
+* Fixed the usage information in documentation of "save_screenshot". (#3804)
+* Add Element Not Interactable exception
+* Clean up imports in error handler
+* flake8 cleanup
+
+Selenium 3.3.3
+
+* make w3c execute_script commands unique
+
+Selenium 3.3.2
+
+* Update window commands to use W3C End points
+* Update Alert when in W3C mode to use W3C Endpoints
+* Update to new W3C Execute Script end points
+* Add setting/getting proxy details to Firefox Options
+* Deprecate the use of browser profile when instantiating a session
+* Update start session to handle the W3C New Session
+* Add get/set window rect commands
+* Add InvalidArgumentException
+* When passing in `text` to send_keys, make sure we send a string not array
+* Fix string decoding in remote connection (#3663)
+* Fix indentation to satisfy PEP8
+* Try use old way of setting page load timeout if new way fails. Fixes #3654
+* fix file uploads for Firefox
+* Run unit tests on Python 3.3, 3.4, and 3.5 (#3638)
+* Fix indentation in double_click.
+* Fix non-W3C page load timeout setting.
+
+Selenium 3.3.1
+* Fix encoding of basic auth header when using Python 3 Fixes #3622
+* Add initial unit test suite
+* Update W3C Timeout setting to be in line with the specification
+* support.ui.Select class inherits from object (#3067)
+* fix bug in proxy constructor that some properties are not proper set (#3459)
+* Fix flake8 issues (#3628)
+
+Selenium 3.3.0
+** Note ** If you are updating to this version, please also update GeckoDriver to v0.15.0
+* Fix python HTTPS encoding for python driver (#3379)
+* Allow Firefox preferences to be set directly in Options
+* Fix shutdown and process termination (#3263)
+* Preventing exception if log_path is none or empty. Fixes #3128
+* Add the W3C capability to Firefox for accepting insecure certificates
+* Initial implementation of Pointer Actions
+* Only skip tests if driver name matches a directory name.
+* Update calls that return a pure object with keys to look for 'value' key
+* Initial W3C Actions support
+* fix docs output directory
+
+Selenium 3.0.2
+* Add support for W3C Get Active Element
+* Return when we use executeScript for faking WebElement.get_property
+* Expand user paths and resolve absolute path for Chrome extensions
+* Add support for verbose logging and custom path to EdgeDriver
+* Update TakeElementScreenshot to match WebDriver specification
+* Raise WebDriverException when FirefoxBinary fails to locate binary
+* Fix getting IP for python 3
+* Write Service log to DEVNULL by default
+* Only attempt to remove the Firefox profile path if one was specified
+* Added context manager for chrome/content in Firefox
+
 Selenium 3.0.1
 * Fix regressions with python 3
 * Add support for Safari Technology Preview
@@ -35,6 +123,7 @@ Selenium 3.0.0.b1
 * Avoid checking exception details for invalid locators due to differences in server implementations
 * Handle capabilities better with Marionette and GeckoDriver
 * Updated the maxVersion of FirefoxDriver xpi maxVersion to work with Firefox 47.0.1
+* Remove Selenium RC support
 
 Selenium 2.53.0
 * Adding Options object for use with Python FirefoxDriver

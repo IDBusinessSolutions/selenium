@@ -25,14 +25,13 @@ import static org.openqa.selenium.ie.InternetExplorerDriver.ENABLE_PERSISTENT_HO
 import org.junit.Test;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.testing.NoDriverAfterTest;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.remote.DesiredCapabilities;
 import org.openqa.selenium.testing.JUnit4TestBase;
-import org.openqa.selenium.testing.JavascriptEnabled;
 import org.openqa.selenium.testing.NeedsLocalEnvironment;
+import org.openqa.selenium.testing.NoDriverAfterTest;
 import org.openqa.selenium.testing.TestUtilities;
 import org.openqa.selenium.testing.drivers.WebDriverBuilder;
 
@@ -64,7 +63,6 @@ public class InternetExplorerDriverTest extends JUnit4TestBase {
     }
   }
 
-  @JavascriptEnabled
   @NoDriverAfterTest
   @NeedsLocalEnvironment
   @Test

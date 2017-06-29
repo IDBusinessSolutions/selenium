@@ -40,6 +40,7 @@ import org.junit.runners.JUnit4;
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.Cookie;
 import org.openqa.selenium.Platform;
+import org.openqa.selenium.Proxy;
 import org.openqa.selenium.logging.LogType;
 import org.openqa.selenium.logging.LoggingPreferences;
 
@@ -387,7 +388,6 @@ public class JsonToBeanConverterTest {
 
     assertEquals(0, response.getStatus().intValue());
     assertEquals(new ErrorCodes().toState(0), response.getState());
-    @SuppressWarnings("unchecked")
     String value = (String) response.getValue();
     assertEquals("cheese", value);
   }
@@ -399,9 +399,16 @@ public class JsonToBeanConverterTest {
 
     assertEquals(0, response.getStatus().intValue());
     assertEquals(new ErrorCodes().toState(0), response.getState());
-    @SuppressWarnings("unchecked")
     String value = (String) response.getValue();
     assertEquals("cheese", value);
+  }
+
+  @Test
+  public void testShouldConvertInvalidSelectorError() {
+    Response response = new JsonToBeanConverter()
+      .convert(Response.class, "{\"state\":\"invalid selector\",\"message\":\"invalid xpath selector\"}");
+    assertEquals(32, response.getStatus().intValue());
+    assertEquals(new ErrorCodes().toState(32), response.getState());
   }
 
   @Test
@@ -411,7 +418,6 @@ public class JsonToBeanConverterTest {
 
     assertEquals("success", response.getState());
     assertEquals(0, response.getStatus().intValue());
-    @SuppressWarnings("unchecked")
     String value = (String) response.getValue();
     assertEquals("cheese", value);
   }
@@ -421,6 +427,12 @@ public class JsonToBeanConverterTest {
     Response response = new JsonToBeanConverter()
       .convert(Response.class, "{\"value\":\"cheese\"}");
     assertNull(response.getStatus());
+  }
+
+  @Test
+  public void canConvertAnEnumWithALowerCaseValue() {
+    Proxy.ProxyType type = new JsonToBeanConverter().convert(Proxy.ProxyType.class, "pac");
+    assertEquals(Proxy.ProxyType.PAC, type);
   }
 
   public static class SimpleBean {

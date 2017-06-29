@@ -24,12 +24,13 @@ import org.openqa.selenium.remote.DesiredCapabilities;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
  * This driver provider that instantiates FirefoxDriver.
+ * @deprecated No longer used.
  */
+@Deprecated
 public class FirefoxDriverProvider implements DriverProvider {
 
   private static final Logger LOG = Logger.getLogger(FirefoxDriverProvider.class.getName());
@@ -67,15 +68,11 @@ public class FirefoxDriverProvider implements DriverProvider {
   private Class<? extends WebDriver> getDriverClass(String driverClassName) {
     try {
       return Class.forName(driverClassName).asSubclass(WebDriver.class);
-    } catch (ClassNotFoundException e) {
-      LOG.log(Level.INFO, "Driver class not found: " + driverClassName);
-      return null;
-    } catch (NoClassDefFoundError e) {
-      LOG.log(Level.INFO, "Driver class not found: " + driverClassName);
-      return null;
+    } catch (ClassNotFoundException | NoClassDefFoundError e) {
+      throw new WebDriverException("Driver class not found: " + driverClassName);
     } catch (UnsupportedClassVersionError e) {
-      LOG.log(Level.INFO, "Driver class is built for higher Java version: " + driverClassName);
-      return null;
+      throw new WebDriverException(
+          "Driver class is built for higher Java version: " + driverClassName);
     }
   }
 
@@ -87,16 +84,10 @@ public class FirefoxDriverProvider implements DriverProvider {
     } catch (NoSuchMethodException e) {
       try {
         return from.newInstance();
-      } catch (InstantiationException e1) {
-        throw new WebDriverException(e);
-      } catch (IllegalAccessException e1) {
+      } catch (InstantiationException | IllegalAccessException e1) {
         throw new WebDriverException(e);
       }
-    } catch (InvocationTargetException e) {
-      throw new WebDriverException(e);
-    } catch (InstantiationException e) {
-      throw new WebDriverException(e);
-    } catch (IllegalAccessException e) {
+    } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
       throw new WebDriverException(e);
     }
   }

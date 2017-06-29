@@ -140,15 +140,18 @@ module Selenium
 
       def find_binary(*binary_names)
         paths = ENV['PATH'].split(File::PATH_SEPARATOR)
-        binary_names.map! { |n| "#{n}.exe" } if windows?
+
+        if windows?
+          binary_names.map! { |n| "#{n}.exe" }
+          binary_names.dup.each { |n| binary_names << n.gsub('exe', 'bat') }
+        end
 
         binary_names.each do |binary_name|
           paths.each do |path|
             full_path = File.join(path, binary_name)
             full_path.tr!('\\', '/') if windows?
-            exe = Dir.glob(full_path).first
-            next unless exe
-            return exe if File.executable?(exe)
+            exe = Dir.glob(full_path).find { |f| File.executable?(f) }
+            return exe if exe
           end
         end
 

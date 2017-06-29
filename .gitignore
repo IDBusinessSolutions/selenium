@@ -3,6 +3,7 @@ projectFilesBackup/
 .DS_Store
 .svn
 .buckd
+.buckconfig.local
 .nobuckcheck
 .credentials.dat
 buck-out
@@ -11,11 +12,13 @@ mockpiframe.log.lck
 junitvmwatcher*.properties
 test-output/
 .*.swp
+*~
 common/build
 /build/
 cpp/iedriver/IEReturnTypes.h
 java/client/src/org/openqa/selenium/ie/IeReturnTypes.java
 javascript/deps.js
+javascript/node/selenium-webdriver/lib/atoms/
 javascript/node/selenium-webdriver/node_modules/
 javascript/safari-driver/node_modules/
 .idea/vcs.xml
@@ -56,6 +59,7 @@ py/selenium/webdriver/firefox/x86/
 py/selenium/webdriver/remote/getAttribute.js
 py/selenium/webdriver/remote/isDisplayed.js
 py/docs/build/
+py/build/
 selenium.egg-info/
 third_party/java/jetty/jetty-repacked.jar
 *.user

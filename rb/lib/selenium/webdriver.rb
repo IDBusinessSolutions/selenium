@@ -30,6 +30,7 @@ module Selenium
   module WebDriver
     Point     = Struct.new(:x, :y)
     Dimension = Struct.new(:width, :height)
+    Rectangle = Struct.new(:x, :y, :width, :height)
     Location  = Struct.new(:latitude, :longitude, :altitude)
 
     autoload :Chrome,    'selenium/webdriver/chrome'
@@ -50,26 +51,29 @@ module Selenium
     #
     # Create a new Driver instance with the correct bridge for the given browser
     #
-    # @param browser [:ie, :internet_explorer, :edge, :remote, :chrome, :firefox, :ff, :phantomjs, :safari]
-    #   the driver type to use
-    # @param *rest
-    #   arguments passed to Bridge.new
+    # @overload for(browser)
+    #   @param [:ie, :internet_explorer, :edge, :remote, :chrome, :firefox, :ff, :phantomjs, :safari] browser The browser to
+    #     create the driver for
+    # @overload for(browser, opts)
+    #   @param [:ie, :internet_explorer, :edge, :remote, :chrome, :firefox, :ff, :phantomjs, :safari] browser The browser to
+    #     create the driver for
+    #   @param [Hash] opts Options passed to Driver.new
     #
     # @return [Driver]
     #
-    # @see Selenium::WebDriver::Remote::Bridge
-    # @see Selenium::WebDriver::Firefox::Bridge
-    # @see Selenium::WebDriver::IE::Bridge
-    # @see Selenium::WebDriver::Edge::Bridge
-    # @see Selenium::WebDriver::Chrome::Bridge
-    # @see Selenium::WebDriver::PhantomJS::Bridge
-    # @see Selenium::WebDriver::Safari::Bridge
+    # @see Selenium::WebDriver::Remote::Driver
+    # @see Selenium::WebDriver::Firefox::Driver
+    # @see Selenium::WebDriver::IE::Driver
+    # @see Selenium::WebDriver::Edge::Driver
+    # @see Selenium::WebDriver::Chrome::Driver
+    # @see Selenium::WebDriver::PhantomJS::Driver
+    # @see Selenium::WebDriver::Safari::Driver
     #
     # @example
     #
-    #   WebDriver.for :firefox, :profile => "some-profile"
-    #   WebDriver.for :firefox, :profile => Profile.new
-    #   WebDriver.for :remote,  :url => "http://localhost:4444/wd/hub", :desired_capabilities => caps
+    #   WebDriver.for :firefox, profile: 'some-profile'
+    #   WebDriver.for :firefox, profile: Profile.new
+    #   WebDriver.for :remote,  url: "http://localhost:4444/wd/hub", desired_capabilities: caps
     #
     # One special argument is not passed on to the bridges, :listener.
     # You can pass a listener for this option to get notified of WebDriver events.
@@ -80,6 +84,16 @@ module Selenium
 
     def self.for(*args)
       WebDriver::Driver.for(*args)
+    end
+
+    #
+    # Returns logger instance that can be used across the whole Selenium.
+    #
+    # @return [Logger]
+    #
+
+    def self.logger
+      @logger ||= WebDriver::Logger.new
     end
   end # WebDriver
 end # Selenium

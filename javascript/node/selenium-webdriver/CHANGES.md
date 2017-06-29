@@ -1,4 +1,81 @@
-## v.next
+## v3.4.0
+
+### Notice
+
+This release requires [geckodriver 0.15.0](https://github.com/mozilla/geckodriver/releases/tag/v0.15.0) or newer.
+
+### API Changes
+
+* Added `Options#getTimeouts()` for retrieving the currently configured session
+  timeouts (i.e. implicit wait). This method will only work with W3C compatible
+  WebDriver implementations.
+* Deprecated the `Timeouts` class in favor of `Options#setTimeouts()`, which
+  supports setting multiple timeouts at once.
+* Added support for emulating different network conditions (e.g., offline, 2G, WiFi) on Chrome.
+
+### Changes for W3C WebDriver Spec Compliance
+
+* Fixed W3C response parsing, which expects response data to always be a JSON
+  object with a `value` key.
+* Added W3C endpoints for interacting with various types of 
+  [user prompts](https://w3c.github.io/webdriver/webdriver-spec.html#user-prompts).
+* Added W3C endpoints for remotely executing scripts.
+* Added W3C endpoints to get current window handle and all windows handles.
+
+
+## v3.3.0
+
+* Added warning log messages when the user creates new managed promises, or
+  schedules unchained tasks. Users may opt in to printing these log messages
+  with
+
+  ```js
+  const {logging} = require('selenium-webdriver');
+  logging.installConsoleHandler();
+  logging.getLogger('promise.ControlFlow').setLevel(logging.Level.WARNING);
+  ```
+* If the `JAVA_HOME` environment variable is set, use it to locate java.exe.
+
+
+## v3.2.0
+
+* Release skipped to stay in sync with the main Selenium project.
+
+
+## v3.1.0
+
+* The `lib` package is once again platform agnostic (excluding `lib/devmode`).
+* Deprecated `promise.when(value, callback, errback)`.
+  Use `promise.fulfilled(value).then(callback, errback)`
+* Changed `promise.fulfilled(value)`, `promise.rejected(reason)` and
+  `promise.defer()` to all use native promises when the promise manager is
+  disabled.
+* Properly handle W3C error responses to new session commands.
+* Updated `selenium-webdriver/testing` to export `describe.only` along with
+  `describe.skip`.
+* Fixed `selenium-webdriver/lib/until.ableToSwitchToFrame`. It was previously
+  dropping arguments and would never work.
+* Added the ability to use Firefox Nightly
+* If Firefox cannot be found in the default location, look for it on the PATH
+* Allow SafariDriver to use Safari Technology Preview.
+* Use the proper wire command for WebElement.getLocation() and
+  WebElement.getSize() for W3C compliant drivers.
+
+
+## v3.0.1
+
+* More API adjustments to align with native Promises
+  - Deprecated `promise.fulfilled(value)`, use `promise.Promise#resolve(value)`
+  - Deprecated `promise.rejected(reason)`, use `promise.Promise#reject(reason)`
+* When a `wait()` condition times out, the returned promise will now be
+  rejected with an `error.TimeoutError` instead of a generic `Error` object.
+* `WebDriver#wait()` will now throw a TypeError if an invalid wait condition is
+  provided.
+* Properly catch unhandled promise rejections with an action sequence (only
+  impacts when the promise manager is disabled).
+
+
+## v3.0.0
 
 * (__NOTICE__) The minimum supported version of Node is now 6.9.0 LTS
 * Removed support for the SafariDriver browser extension. This has been
@@ -7,15 +84,42 @@
 
   To use Safari 9 or older, users will have to use an older version of Selenium.
 
+* geckodriver v0.11.0 or newer is now required for Firefox.
 * Fixed potential reference errors in `selenium-webdriver/testing` when users
   create a cycle with mocha by running with mocha's `--hook` flag.
 * Fixed `WebDriver.switchTo().activeElement()` to use the correct HTTP method
   for compatibility with the W3C spec.
+* Update the `selenium-webdriver/firefox` module to use geckodriver's
+  "moz:firefoxOptions" dictionary for Firefox-specific configuration values.
+* Extending the `selenium-webdriver/testing` module to support tests defined
+  using generator functions.
+* The promise manager can be disabled by setting an enviornment variable:
+  `SELENIUM_PROMISE_MANAGER=0`. This is part of a larger plan to remove the
+  promise manager, as documented at
+  <https://github.com/SeleniumHQ/selenium/issues/2969>
+* When communicating with a W3C-compliant remote end, use the atoms library for
+  the `WebElement.getAttribute()` and `WebElement.isDisplayed()` commands. This
+  behavior is consistent with the java, .net, python, and ruby clients.
 
 
 ### API Changes
 
  * Removed `safari.Options#useLegacyDriver()`
+ * Reduced the API on `promise.Thenable` for compatibility with native promises:
+   - Removed `#isPending()`
+   - Removed `#cancel()`
+   - Removed `#finally()`
+ * Changed all subclasses of `webdriver.WebDriver` to overload the static
+   function `WebDriver.createSession()` instead of doing work in the
+   constructor. All constructors now inherit the base class' function signature.
+   Users are still encouraged to use the `Builder` class instead of creating
+   drivers directly.
+ * `Builder#build()` now returns a "thenable" WebDriver instance, allowing users
+   to immediately schedule commands (as before), or issue them through standard
+   promise callbacks. This is the same pattern already employed for WebElements.
+ * Removed `Builder#buildAsync()` as it was redundant with the new semantics of
+   `build()`.
+
 
 
 ## v3.0.0-beta-3

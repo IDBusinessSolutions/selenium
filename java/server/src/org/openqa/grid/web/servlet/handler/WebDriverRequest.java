@@ -18,16 +18,12 @@
 
 package org.openqa.grid.web.servlet.handler;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.google.gson.JsonSyntaxException;
 
 import org.openqa.grid.common.exception.GridException;
 import org.openqa.grid.internal.ExternalSessionKey;
 import org.openqa.grid.internal.Registry;
-import org.openqa.grid.internal.TestSession;
-import org.openqa.selenium.remote.BeanToJsonConverter;
 import org.openqa.selenium.remote.JsonToBeanConverter;
 
 import java.util.Map;
@@ -67,14 +63,17 @@ public class WebDriverRequest extends SeleniumBasedRequest {
     String json = getBody();
     try {
       JsonObject map = new JsonParser().parse(json).getAsJsonObject();
-      // Current W3C has required / desired capabilities wrapped in a 'capabilites' object.
+      // Current W3C has required / desired capabilities wrapped in a 'capabilities' object.
       // This will need to be updated if/when https://github.com/w3c/webdriver/pull/327 gets merged
       if (map.has("capabilities")) {
-        return new JsonToBeanConverter().convert(Map.class, map.getAsJsonObject("capabilities").getAsJsonObject("desiredCapabilities"));
+        JsonObject outerCapabilities = map.getAsJsonObject("capabilities");
+        if (outerCapabilities.has("desiredCapabilities")) {
+          JsonObject desiredCapabilities = outerCapabilities.getAsJsonObject("desiredCapabilities");
+          return new JsonToBeanConverter().convert(Map.class, desiredCapabilities);
+        }
       }
       JsonObject dc = map.get("desiredCapabilities").getAsJsonObject();
       return new JsonToBeanConverter().convert(Map.class, dc);
-
     } catch (Exception e) {
       throw new GridException("Cannot extract a capabilities from the request: " + json, e);
     }

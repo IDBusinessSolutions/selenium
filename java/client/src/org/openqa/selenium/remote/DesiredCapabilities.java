@@ -17,13 +17,14 @@
 
 package org.openqa.selenium.remote;
 
+import static org.openqa.selenium.remote.CapabilityType.ACCEPT_INSECURE_CERTS;
 import static org.openqa.selenium.remote.CapabilityType.BROWSER_NAME;
 import static org.openqa.selenium.remote.CapabilityType.LOGGING_PREFS;
 import static org.openqa.selenium.remote.CapabilityType.PLATFORM;
 import static org.openqa.selenium.remote.CapabilityType.SUPPORTS_JAVASCRIPT;
+import static org.openqa.selenium.remote.CapabilityType.UNEXPECTED_ALERT_BEHAVIOUR;
+import static org.openqa.selenium.remote.CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR;
 import static org.openqa.selenium.remote.CapabilityType.VERSION;
-
-import com.google.common.collect.Maps;
 
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.Platform;
@@ -51,79 +52,42 @@ public class DesiredCapabilities implements Serializable, Capabilities {
   }
 
   public DesiredCapabilities(Map<String, ?> rawMap) {
-    capabilities.putAll(rawMap);
-
-    if (rawMap.containsKey(LOGGING_PREFS) && rawMap.get(LOGGING_PREFS) instanceof Map) {
-      LoggingPreferences prefs = new LoggingPreferences();
-      Map<String, String> prefsMap = (Map<String, String>) rawMap.get(LOGGING_PREFS);
-
-      for (String logType : prefsMap.keySet()) {
-        prefs.enable(logType, LogLevelMapping.toLevel(prefsMap.get(logType)));
-      }
-      capabilities.put(LOGGING_PREFS, prefs);
+    if (rawMap == null) {
+      return;
     }
 
-    Object value = capabilities.get(PLATFORM);
-    if (value instanceof String) {
-      try {
-        capabilities.put(PLATFORM, Platform.fromString((String) value));
-      } catch (WebDriverException ex) {
-        // unrecognized platform, fallback to string
-      }
-    }
+    rawMap.forEach(this::setCapability);
   }
 
   public DesiredCapabilities(Capabilities other) {
-    if (other != null) {
-      merge(other);
-    }
+    merge(other);
   }
 
   public DesiredCapabilities(Capabilities... others) {
     for (Capabilities caps : others) {
-      if (caps != null) {
-        merge(caps);
-      }
+      merge(caps);
     }
-  }
-
-  public String getBrowserName() {
-    Object browserName = capabilities.get(BROWSER_NAME);
-    return browserName == null ? "" : browserName.toString();
   }
 
   public void setBrowserName(String browserName) {
     setCapability(BROWSER_NAME, browserName);
   }
 
-  public String getVersion() {
-    Object version = capabilities.get(VERSION);
-    return version == null ? "" : version.toString();
-  }
-
   public void setVersion(String version) {
     setCapability(VERSION, version);
-  }
-
-  public Platform getPlatform() {
-    if (capabilities.containsKey(PLATFORM)) {
-      Object raw = capabilities.get(PLATFORM);
-      if (raw instanceof String) {
-        return Platform.valueOf((String) raw);
-      } else if (raw instanceof Platform) {
-        return (Platform) raw;
-      }
-    }
-    return null;
   }
 
   public void setPlatform(Platform platform) {
     setCapability(PLATFORM, platform);
   }
 
-  public boolean isJavascriptEnabled() {
-    if (capabilities.containsKey(SUPPORTS_JAVASCRIPT)) {
-      Object raw = capabilities.get(SUPPORTS_JAVASCRIPT);
+  public void setJavascriptEnabled(boolean javascriptEnabled) {
+    setCapability(SUPPORTS_JAVASCRIPT, javascriptEnabled);
+  }
+
+  public boolean acceptInsecureCerts() {
+    if (capabilities.containsKey(ACCEPT_INSECURE_CERTS)) {
+      Object raw = capabilities.get(ACCEPT_INSECURE_CERTS);
       if (raw instanceof String) {
         return Boolean.parseBoolean((String) raw);
       } else if (raw instanceof Boolean) {
@@ -133,20 +97,12 @@ public class DesiredCapabilities implements Serializable, Capabilities {
     return true;
   }
 
-  public void setJavascriptEnabled(boolean javascriptEnabled) {
-    setCapability(SUPPORTS_JAVASCRIPT, javascriptEnabled);
+  public void setAcceptInsecureCerts(boolean acceptInsecureCerts) {
+    setCapability(ACCEPT_INSECURE_CERTS, acceptInsecureCerts);
   }
 
   public Object getCapability(String capabilityName) {
     return capabilities.get(capabilityName);
-  }
-
-  public boolean is(String capabilityName) {
-    Object cap = getCapability(capabilityName);
-    if (cap == null) {
-      return false;
-    }
-    return cap instanceof Boolean ? (Boolean) cap : Boolean.parseBoolean(String.valueOf(cap));
   }
 
   /**
@@ -157,37 +113,46 @@ public class DesiredCapabilities implements Serializable, Capabilities {
    * @param extraCapabilities Additional capabilities to be added.
    * @return DesiredCapabilities after the merge
    */
-  public DesiredCapabilities merge(
-      org.openqa.selenium.Capabilities extraCapabilities) {
-    if (extraCapabilities != null) {
-      capabilities.putAll(extraCapabilities.asMap());
+  @Override
+  public DesiredCapabilities merge(Capabilities extraCapabilities) {
+    if (extraCapabilities == null) {
+      return this;
     }
+
+    extraCapabilities.asMap().forEach(this::setCapability);
+
     return this;
   }
 
   public void setCapability(String capabilityName, boolean value) {
-    capabilities.put(capabilityName, value);
+    setCapability(capabilityName, (Object) value);
   }
 
   public void setCapability(String capabilityName, String value) {
-    if (PLATFORM.equals(capabilityName)) {
-      try {
-        capabilities.put(capabilityName, Platform.fromString(value));
-      } catch (WebDriverException ex) {
-        capabilities.put(capabilityName, value);
-      }
-    } else {
-      capabilities.put(capabilityName, value);
-    }
+    setCapability(capabilityName, (Object) value);
   }
 
   public void setCapability(String capabilityName, Platform value) {
-    capabilities.put(capabilityName, value);
+    setCapability(capabilityName, (Object) value);
   }
 
   public void setCapability(String key, Object value) {
-    if (PLATFORM.equals(key) && value instanceof String) {
-      capabilities.put(key, Platform.fromString((String) value));
+    if (LOGGING_PREFS.equals(key) && value instanceof Map) {
+      LoggingPreferences prefs = new LoggingPreferences();
+      Map<String, String> prefsMap = (Map<String, String>) value;
+
+      for (String logType : prefsMap.keySet()) {
+        prefs.enable(logType, LogLevelMapping.toLevel(prefsMap.get(logType)));
+      }
+      capabilities.put(LOGGING_PREFS, prefs);
+    } else if (PLATFORM.equals(key) && value instanceof String) {
+      try {
+        capabilities.put(key, Platform.fromString((String) value));
+      } catch (WebDriverException e) {
+        capabilities.put(key, value);
+      }
+    } else if (UNEXPECTED_ALERT_BEHAVIOUR.equals(key)) {
+      capabilities.put(UNHANDLED_PROMPT_BEHAVIOUR, value);
     } else {
       capabilities.put(key, value);
     }
@@ -206,22 +171,17 @@ public class DesiredCapabilities implements Serializable, Capabilities {
   }
 
   public static DesiredCapabilities firefox() {
-    DesiredCapabilities
-      caps = new DesiredCapabilities(BrowserType.FIREFOX, "", Platform.ANY);
-    // Avoid a circular reference between the firefox driver and the remote driver
-    caps.setCapability("marionette", true);
-    return caps;
+    DesiredCapabilities capabilities = new DesiredCapabilities(
+        BrowserType.FIREFOX,
+        "",
+        Platform.ANY);
+    capabilities.setCapability("acceptInsecureCerts", true);
+
+    return capabilities;
   }
 
   public static DesiredCapabilities htmlUnit() {
     return new DesiredCapabilities(BrowserType.HTMLUNIT, "", Platform.ANY);
-  }
-
-  public static DesiredCapabilities htmlUnitWithJs() {
-    DesiredCapabilities capabilities = new DesiredCapabilities(BrowserType.HTMLUNIT,
-                                                               "", Platform.ANY);
-    capabilities.setJavascriptEnabled(true);
-    return capabilities;
   }
 
   public static DesiredCapabilities edge() {
@@ -269,7 +229,7 @@ public class DesiredCapabilities implements Serializable, Capabilities {
   }
 
   private Map<String, Object> shortenMapValues(Map<String, Object> map) {
-    Map<String, Object> newMap = Maps.newHashMap();
+    Map<String, Object> newMap = new HashMap<>();
 
     for (Map.Entry<String, Object> entry : map.entrySet()) {
       if (entry.getValue() instanceof Map) {

@@ -28,17 +28,16 @@ except NameError:  # Python 3.x
 import shutil
 import socket
 import sys
-import types
-
-from .extension_connection import ExtensionConnection
 from contextlib import contextmanager
 
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+from selenium.webdriver.remote.webdriver import WebDriver as RemoteWebDriver
+
+from .extension_connection import ExtensionConnection
 from .firefox_binary import FirefoxBinary
 from .firefox_profile import FirefoxProfile
 from .options import Options
 from .remote_connection import FirefoxRemoteConnection
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-from selenium.webdriver.remote.webdriver import WebDriver as RemoteWebDriver
 from .service import Service
 from .webelement import FirefoxWebElement
 
@@ -47,6 +46,9 @@ class WebDriver(RemoteWebDriver):
 
     # There is no native event support on Mac
     NATIVE_EVENTS_ALLOWED = sys.platform != "darwin"
+
+    CONTEXT_CHROME = "chrome"
+    CONTEXT_CONTENT = "content"
 
     _web_element_cls = FirefoxWebElement
 
@@ -101,6 +103,7 @@ class WebDriver(RemoteWebDriver):
         """
         self.binary = None
         self.profile = None
+        self.service = None
 
         if capabilities is None:
             capabilities = DesiredCapabilities.FIREFOX.copy()
@@ -133,10 +136,8 @@ class WebDriver(RemoteWebDriver):
         # W3C remote
         # TODO(ato): Perform conformance negotiation
 
-        self.CONTEXT_CHROME = 'chrome'
-        self.CONTEXT_CONTENT = 'content'
-
         if capabilities.get("marionette"):
+            capabilities.pop("marionette")
             self.service = Service(executable_path, log_path=log_path)
             self.service.start()
 
@@ -182,10 +183,12 @@ class WebDriver(RemoteWebDriver):
             # Happens if Firefox shutsdown before we've read the response from
             # the socket.
             pass
-        if "specificationLevel" in self.capabilities:
+
+        if self.w3c:
             self.service.stop()
         else:
             self.binary.kill()
+
         if self.profile is not None:
             try:
                 shutil.rmtree(self.profile.path)
@@ -224,3 +227,27 @@ class WebDriver(RemoteWebDriver):
             yield
         finally:
             self.set_context(initial_context)
+
+    def install_addon(self, path, temporary=None):
+        """
+        Installs Firefox addon.
+
+        Returns identifier of installed addon. This identifier can later
+        be used to uninstall addon.
+
+        :Usage:
+            driver.install_addon('firebug.xpi')
+        """
+        payload = {"path": path}
+        if temporary is not None:
+            payload["temporary"] = temporary
+        return self.execute("INSTALL_ADDON", payload)["value"]
+
+    def uninstall_addon(self, identifier):
+        """
+        Uninstalls Firefox addon using its identifier.
+
+        :Usage:
+            driver.uninstall_addon('addon@foo.com')
+        """
+        self.execute("UNINSTALL_ADDON", {"id": identifier})

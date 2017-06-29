@@ -19,201 +19,218 @@ import pytest
 
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import WebDriverException
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 
-class TestFormHandling(object):
+@pytest.mark.xfail_marionette(reason="https://bugzilla.mozilla.org/show_bug.cgi?id=1291320")
+def testShouldClickOnSubmitInputElements(driver, pages):
+    pages.load("formPage.html")
+    driver.find_element_by_id("submitButton").click()
+    assert driver.title == "We Arrive Here"
 
-    def testShouldClickOnSubmitInputElements(self, driver, pages):
-        pages.load("formPage.html")
-        driver.find_element_by_id("submitButton").click()
-        driver.implicitly_wait(5)
-        assert driver.title == "We Arrive Here"
 
-    def testClickingOnUnclickableElementsDoesNothing(self, driver, pages):
-        pages.load("formPage.html")
-        driver.find_element_by_xpath("//body").click()
+def testClickingOnUnclickableElementsDoesNothing(driver, pages):
+    pages.load("formPage.html")
+    driver.find_element_by_xpath("//body").click()
 
-    def testShouldBeAbleToClickImageButtons(self, driver, pages):
-        pages.load("formPage.html")
-        driver.find_element_by_id("imageButton").click()
-        driver.implicitly_wait(5)
-        assert driver.title == "We Arrive Here"
 
-    def testShouldBeAbleToSubmitForms(self, driver, pages):
-        pages.load("formPage.html")
-        driver.find_element_by_name("login").submit()
-        driver.implicitly_wait(5)
-        assert driver.title == "We Arrive Here"
+def testShouldBeAbleToClickImageButtons(driver, pages):
+    pages.load("formPage.html")
+    driver.find_element_by_id("imageButton").click()
+    WebDriverWait(driver, 3).until(EC.title_is("We Arrive Here"))
 
-    def testShouldSubmitAFormWhenAnyInputElementWithinThatFormIsSubmitted(self, driver, pages):
-        pages.load("formPage.html")
-        driver.find_element_by_id("checky").submit()
-        driver.implicitly_wait(5)
-        assert driver.title == "We Arrive Here"
 
-    def testShouldSubmitAFormWhenAnyElementWihinThatFormIsSubmitted(self, driver, pages):
-        pages.load("formPage.html")
-        driver.find_element_by_xpath("//form/p").submit()
-        driver.implicitly_wait(5)
-        assert driver.title == "We Arrive Here"
+def testShouldBeAbleToSubmitForms(driver, pages):
+    pages.load("formPage.html")
+    driver.find_element_by_name("login").submit()
+    assert driver.title == "We Arrive Here"
 
-    def testShouldNotBeAbleToSubmitAFormThatDoesNotExist(self, driver, pages):
-        pages.load("formPage.html")
-        with pytest.raises(NoSuchElementException):
-            driver.find_element_by_name("there is no spoon").submit()
 
-    def testShouldBeAbleToEnterTextIntoATextAreaBySettingItsValue(self, driver, pages):
-        pages.load("javascriptPage.html")
-        textarea = driver.find_element_by_id("keyUpArea")
-        cheesey = "Brie and cheddar"
-        textarea.send_keys(cheesey)
-        assert textarea.get_attribute("value") == cheesey
+def testShouldSubmitAFormWhenAnyInputElementWithinThatFormIsSubmitted(driver, pages):
+    pages.load("formPage.html")
+    driver.find_element_by_id("checky").submit()
+    assert driver.title == "We Arrive Here"
 
-    def testShouldEnterDataIntoFormFields(self, driver, pages):
-        pages.load("xhtmlTest.html")
-        element = driver.find_element_by_xpath("//form[@name='someForm']/input[@id='username']")
-        originalValue = element.get_attribute("value")
-        assert originalValue == "change"
 
-        element.clear()
-        element.send_keys("some text")
+def testShouldSubmitAFormWhenAnyElementWihinThatFormIsSubmitted(driver, pages):
+    pages.load("formPage.html")
+    driver.find_element_by_xpath("//form/p").submit()
+    assert driver.title == "We Arrive Here"
 
-        element = driver.find_element_by_xpath("//form[@name='someForm']/input[@id='username']")
-        newFormValue = element.get_attribute("value")
-        assert newFormValue == "some text"
 
-    def testShouldBeAbleToSelectACheckBox(self, driver, pages):
-        pages.load("formPage.html")
-        checkbox = driver.find_element_by_id("checky")
-        assert checkbox.is_selected() is False
-        checkbox.click()
-        assert checkbox.is_selected() is True
-        checkbox.click()
-        assert checkbox.is_selected() is False
+def testShouldNotBeAbleToSubmitAFormThatDoesNotExist(driver, pages):
+    pages.load("formPage.html")
+    with pytest.raises(NoSuchElementException):
+        driver.find_element_by_name("there is no spoon").submit()
 
-    def testShouldToggleTheCheckedStateOfACheckbox(self, driver, pages):
-        pages.load("formPage.html")
-        checkbox = driver.find_element_by_id("checky")
-        assert checkbox.is_selected() is False
-        checkbox.click()
-        assert checkbox.is_selected() is True
-        checkbox.click()
-        assert checkbox.is_selected() is False
 
-    def testTogglingACheckboxShouldReturnItsCurrentState(self, driver, pages):
-        pages.load("formPage.html")
-        checkbox = driver.find_element_by_id("checky")
-        assert checkbox.is_selected() is False
-        checkbox.click()
-        assert checkbox.is_selected() is True
-        checkbox.click()
-        assert checkbox.is_selected() is False
+def testShouldBeAbleToEnterTextIntoATextAreaBySettingItsValue(driver, pages):
+    pages.load("javascriptPage.html")
+    textarea = driver.find_element_by_id("keyUpArea")
+    cheesey = "Brie and cheddar"
+    textarea.send_keys(cheesey)
+    assert textarea.get_attribute("value") == cheesey
 
-    def testShouldBeAbleToSelectARadioButton(self, driver, pages):
-        pages.load("formPage.html")
-        radioButton = driver.find_element_by_id("peas")
-        assert radioButton.is_selected() is False
-        radioButton.click()
-        assert radioButton.is_selected() is True
 
-    def testShouldBeAbleToSelectARadioButtonByClickingOnIt(self, driver, pages):
-        pages.load("formPage.html")
-        radioButton = driver.find_element_by_id("peas")
-        assert radioButton.is_selected() is False
-        radioButton.click()
-        assert radioButton.is_selected() is True
+def testShouldEnterDataIntoFormFields(driver, pages):
+    pages.load("xhtmlTest.html")
+    element = driver.find_element_by_xpath("//form[@name='someForm']/input[@id='username']")
+    originalValue = element.get_attribute("value")
+    assert originalValue == "change"
 
-    def testShouldReturnStateOfRadioButtonsBeforeInteration(self, driver, pages):
-        pages.load("formPage.html")
-        radioButton = driver.find_element_by_id("cheese_and_peas")
-        assert radioButton.is_selected() is True
+    element.clear()
+    element.send_keys("some text")
 
-        radioButton = driver.find_element_by_id("cheese")
-        assert radioButton.is_selected() is False
+    element = driver.find_element_by_xpath("//form[@name='someForm']/input[@id='username']")
+    newFormValue = element.get_attribute("value")
+    assert newFormValue == "some text"
 
-    # [ExpectedException(typeof(NotImplementedException))]
-    # def testShouldThrowAnExceptionWhenTogglingTheStateOfARadioButton(self, driver, pages):
-    #    pages.load("formPage.html")
-    #    radioButton = driver.find_element_by_id("cheese"))
-    #    radioButton.click()
 
-    # [IgnoreBrowser(Browser.IE, "IE allows toggling of an option not in a multiselect")]
-    # [ExpectedException(typeof(NotImplementedException))]
-    # def testTogglingAnOptionShouldThrowAnExceptionIfTheOptionIsNotInAMultiSelect(self, driver, pages):
-    #    pages.load("formPage.html")
-    #    select = driver.find_element_by_name("selectomatic"))
-    #    option = select.find_elements_by_tag_name("option"))[0]
-    #    option.click()
+def testShouldBeAbleToSelectACheckBox(driver, pages):
+    pages.load("formPage.html")
+    checkbox = driver.find_element_by_id("checky")
+    assert checkbox.is_selected() is False
+    checkbox.click()
+    assert checkbox.is_selected() is True
+    checkbox.click()
+    assert checkbox.is_selected() is False
 
-    def testTogglingAnOptionShouldToggleOptionsInAMultiSelect(self, driver, pages):
-        pages.load("formPage.html")
 
-        select = driver.find_element_by_name("multi")
-        option = select.find_elements_by_tag_name("option")[0]
+def testShouldToggleTheCheckedStateOfACheckbox(driver, pages):
+    pages.load("formPage.html")
+    checkbox = driver.find_element_by_id("checky")
+    assert checkbox.is_selected() is False
+    checkbox.click()
+    assert checkbox.is_selected() is True
+    checkbox.click()
+    assert checkbox.is_selected() is False
 
-        selected = option.is_selected()
-        option.click()
-        assert not selected == option.is_selected()
 
-        option.click()
-        assert selected == option.is_selected()
+def testTogglingACheckboxShouldReturnItsCurrentState(driver, pages):
+    pages.load("formPage.html")
+    checkbox = driver.find_element_by_id("checky")
+    assert checkbox.is_selected() is False
+    checkbox.click()
+    assert checkbox.is_selected() is True
+    checkbox.click()
+    assert checkbox.is_selected() is False
 
-    def testShouldThrowAnExceptionWhenSelectingAnUnselectableElement(self, driver, pages):
-        pages.load("formPage.html")
-        element = driver.find_element_by_xpath("//title")
-        with pytest.raises(WebDriverException):
-            element.click()
 
-    def testSendingKeyboardEventsShouldAppendTextInInputs(self, driver, pages):
-        pages.load("formPage.html")
-        element = driver.find_element_by_id("working")
-        element.send_keys("Some")
-        value = element.get_attribute("value")
-        assert value == "Some"
+def testShouldBeAbleToSelectARadioButton(driver, pages):
+    pages.load("formPage.html")
+    radioButton = driver.find_element_by_id("peas")
+    assert radioButton.is_selected() is False
+    radioButton.click()
+    assert radioButton.is_selected() is True
 
-        element.send_keys(" text")
-        value = element.get_attribute("value")
-        assert value == "Some text"
 
-    def testShouldBeAbleToClearTextFromInputElements(self, driver, pages):
-        pages.load("formPage.html")
-        element = driver.find_element_by_id("working")
-        element.send_keys("Some text")
-        value = element.get_attribute("value")
-        assert len(value) > 0
+def testShouldBeAbleToSelectARadioButtonByClickingOnIt(driver, pages):
+    pages.load("formPage.html")
+    radioButton = driver.find_element_by_id("peas")
+    assert radioButton.is_selected() is False
+    radioButton.click()
+    assert radioButton.is_selected() is True
 
-        element.clear()
-        value = element.get_attribute("value")
-        assert len(value) == 0
 
-    def testEmptyTextBoxesShouldReturnAnEmptyStringNotNull(self, driver, pages):
-        pages.load("formPage.html")
-        emptyTextBox = driver.find_element_by_id("working")
-        assert emptyTextBox.get_attribute("value") == ""
+def testShouldReturnStateOfRadioButtonsBeforeInteration(driver, pages):
+    pages.load("formPage.html")
+    radioButton = driver.find_element_by_id("cheese_and_peas")
+    assert radioButton.is_selected() is True
 
-        emptyTextArea = driver.find_element_by_id("emptyTextArea")
-        assert emptyTextArea.get_attribute("value") == ""
+    radioButton = driver.find_element_by_id("cheese")
+    assert radioButton.is_selected() is False
 
-    def testShouldBeAbleToClearTextFromTextAreas(self, driver, pages):
-        pages.load("formPage.html")
-        element = driver.find_element_by_id("withText")
-        element.send_keys("Some text")
-        value = element.get_attribute("value")
-        assert len(value) > 0
+# [ExpectedException(typeof(NotImplementedException))]
+# def testShouldThrowAnExceptionWhenTogglingTheStateOfARadioButton(driver, pages):
+#    pages.load("formPage.html")
+#    radioButton = driver.find_element_by_id("cheese"))
+#    radioButton.click()
 
-        element.clear()
-        value = element.get_attribute("value")
-        assert len(value) == 0
+# [IgnoreBrowser(Browser.IE, "IE allows toggling of an option not in a multiselect")]
+# [ExpectedException(typeof(NotImplementedException))]
+# def testTogglingAnOptionShouldThrowAnExceptionIfTheOptionIsNotInAMultiSelect(driver, pages):
+#    pages.load("formPage.html")
+#    select = driver.find_element_by_name("selectomatic"))
+#    option = select.find_elements_by_tag_name("option"))[0]
+#    option.click()
 
-    def testRadioShouldNotBeSelectedAfterSelectingSibling(self, driver, pages):
-        pages.load("formPage.html")
-        cheese = driver.find_element_by_id("cheese")
-        peas = driver.find_element_by_id("peas")
 
-        cheese.click()
-        assert cheese.is_selected() is True
-        assert peas.is_selected() is False
+def testTogglingAnOptionShouldToggleOptionsInAMultiSelect(driver, pages):
+    pages.load("formPage.html")
 
-        peas.click()
-        assert cheese.is_selected() is False
-        assert peas.is_selected() is True
+    select = driver.find_element_by_name("multi")
+    option = select.find_elements_by_tag_name("option")[0]
+
+    selected = option.is_selected()
+    option.click()
+    assert not selected == option.is_selected()
+
+    option.click()
+    assert selected == option.is_selected()
+
+
+def testShouldThrowAnExceptionWhenSelectingAnUnselectableElement(driver, pages):
+    pages.load("formPage.html")
+    element = driver.find_element_by_xpath("//title")
+    with pytest.raises(WebDriverException):
+        element.click()
+
+
+def testSendingKeyboardEventsShouldAppendTextInInputs(driver, pages):
+    pages.load("formPage.html")
+    element = driver.find_element_by_id("working")
+    element.send_keys("Some")
+    value = element.get_attribute("value")
+    assert value == "Some"
+
+    element.send_keys(" text")
+    value = element.get_attribute("value")
+    assert value == "Some text"
+
+
+def testShouldBeAbleToClearTextFromInputElements(driver, pages):
+    pages.load("formPage.html")
+    element = driver.find_element_by_id("working")
+    element.send_keys("Some text")
+    value = element.get_attribute("value")
+    assert len(value) > 0
+
+    element.clear()
+    value = element.get_attribute("value")
+    assert len(value) == 0
+
+
+def testEmptyTextBoxesShouldReturnAnEmptyStringNotNull(driver, pages):
+    pages.load("formPage.html")
+    emptyTextBox = driver.find_element_by_id("working")
+    assert emptyTextBox.get_attribute("value") == ""
+
+    emptyTextArea = driver.find_element_by_id("emptyTextArea")
+    assert emptyTextArea.get_attribute("value") == ""
+
+
+def testShouldBeAbleToClearTextFromTextAreas(driver, pages):
+    pages.load("formPage.html")
+    element = driver.find_element_by_id("withText")
+    element.send_keys("Some text")
+    value = element.get_attribute("value")
+    assert len(value) > 0
+
+    element.clear()
+    value = element.get_attribute("value")
+    assert len(value) == 0
+
+
+def testRadioShouldNotBeSelectedAfterSelectingSibling(driver, pages):
+    pages.load("formPage.html")
+    cheese = driver.find_element_by_id("cheese")
+    peas = driver.find_element_by_id("peas")
+
+    cheese.click()
+    assert cheese.is_selected() is True
+    assert peas.is_selected() is False
+
+    peas.click()
+    assert cheese.is_selected() is False
+    assert peas.is_selected() is True

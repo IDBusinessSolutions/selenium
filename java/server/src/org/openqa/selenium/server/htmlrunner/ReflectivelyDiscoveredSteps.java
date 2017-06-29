@@ -18,7 +18,6 @@
 package org.openqa.selenium.server.htmlrunner;
 
 
-import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 
@@ -32,6 +31,7 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -71,7 +71,7 @@ class ReflectivelyDiscoveredSteps implements Supplier<ImmutableMap<String, CoreS
       }
 
       CoreStepFactory factory = ((locator, value) -> (selenium, state) ->
-        invokeMethod(method, selenium, locator, value, (result -> NextStepDecorator.IDENTITY)));
+        invokeMethod(method, selenium, state.expand(locator), state.expand(value), (result -> NextStepDecorator.IDENTITY)));
 
       factories.put(method.getName(), factory);
 
@@ -175,7 +175,7 @@ class ReflectivelyDiscoveredSteps implements Supplier<ImmutableMap<String, CoreS
             state.expand(loc),
             state.expand(val),
             (toStore) -> {
-              state.store(state.expand(loc), toStore);
+              state.store(state.expand(val), toStore);
               return NextStepDecorator.IDENTITY;
             }));
 
@@ -193,7 +193,7 @@ class ReflectivelyDiscoveredSteps implements Supplier<ImmutableMap<String, CoreS
                     if (Boolean.class.isAssignableFrom(result.getClass())) {
                       return (Boolean) result;
                     }
-                    return true;
+                    return result.equals(state.expand(val));
                   } catch (IllegalAccessException e) {
                     // It's going to be interesting to see this be thrown
                     throw new RuntimeException(e);
@@ -222,7 +222,7 @@ class ReflectivelyDiscoveredSteps implements Supplier<ImmutableMap<String, CoreS
                     if (Boolean.class.isAssignableFrom(result.getClass())) {
                       return !(Boolean) result;
                     }
-                    return false;
+                    return !result.equals(state.expand(val));
                   } catch (IllegalAccessException e) {
                     // It's going to be interesting to see this be thrown
                     throw new RuntimeException(e);
@@ -236,44 +236,6 @@ class ReflectivelyDiscoveredSteps implements Supplier<ImmutableMap<String, CoreS
             }
             return NextStepDecorator.IDENTITY;
           });
-
-
-//        factories.put(
-//          "waitFor" + shortName,
-//          (loc, val) -> (selenium, state) -> {
-//            String locator = state.expand(loc);
-//            String value = state.expand(val);
-//
-//            String[] args = buildArgs(method, locator, value);
-//
-//            new Wait() {
-//              @Override
-//              public boolean until() {
-//                invokeMethod(method, selenium, buildArgs(method, state.expand(loc), state.expand(val)));
-//                return true;
-//              }
-//            }.wait("Can't wait for " + shortName);
-//            return NextStepDecorator.IDENTITY;
-//          });
-//
-//        factories.put(
-//          "waitFor" + negateName(shortName),
-//          (loc, val) -> (selenium, state) -> {
-//            String locator = state.expand(loc);
-//            String value = state.expand(val);
-//            try {
-//              new Wait() {
-//                @Override
-//                public boolean until() {
-//                  invokeMethod(method, selenium, buildArgs(method, locator, value));
-//                  return true;
-//                }
-//              }.wait("Can't wait for " + shortName);
-//              return NextStepDecorator.ASSERTION_FAILED("Wait succeeded but should have failed");
-//            } catch (Wait.WaitTimedOutException e) {
-//              return NextStepDecorator.IDENTITY;
-//            }
-//          });
       }
 
         factories.put(

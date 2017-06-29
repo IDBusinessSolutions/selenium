@@ -62,7 +62,7 @@
  *     var options = new opera.Options();
  *     // configure browser options ...
  *
- *     var driver = new opera.Driver(options, service);
+ *     var driver = opera.Driver.createSession(options, service);
  *
  * Users should only instantiate the {@link Driver} class directly when they
  * need a custom driver service configuration (as shown above). For normal
@@ -348,14 +348,17 @@ class Options {
  */
 class Driver extends webdriver.WebDriver {
   /**
+   * Creates a new session for Opera.
+   *
    * @param {(capabilities.Capabilities|Options)=} opt_config The configuration
    *     options.
    * @param {remote.DriverService=} opt_service The session to use; will use
    *     the {@link getDefaultService default service} by default.
    * @param {promise.ControlFlow=} opt_flow The control flow to use,
    *     or {@code null} to use the currently active flow.
+   * @return {!Driver} A new driver instance.
    */
-  constructor(opt_config, opt_service, opt_flow) {
+  static createSession(opt_config, opt_service, opt_flow) {
     var service = opt_service || getDefaultService();
     var client = service.start().then(url => new http.HttpClient(url));
     var executor = new http.Executor(client);
@@ -379,8 +382,8 @@ class Driver extends webdriver.WebDriver {
       caps = options.toCapabilities(caps);
     }
 
-    var driver = webdriver.WebDriver.createSession(executor, caps, opt_flow);
-    super(driver.getSession(), executor, driver.controlFlow());
+    return /** @type {!Driver} */(
+        webdriver.WebDriver.createSession(executor, caps, opt_flow, this));
   }
 
   /**

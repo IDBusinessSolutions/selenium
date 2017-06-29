@@ -1,9 +1,6 @@
-Selenium [![Build Status](https://travis-ci.org/SeleniumHQ/selenium.svg)](//travis-ci.org/SeleniumHQ/selenium)
+Selenium [![Travis Status](https://travis-ci.org/SeleniumHQ/selenium.svg?branch=master)](//travis-ci.org/SeleniumHQ/selenium) [![AppVeyor Status](https://ci.appveyor.com/api/projects/status/pg1f99p1aetp9mk9/branch/master?svg=true)](https://ci.appveyor.com/project/SeleniumHQ/selenium/branch/master)
 ========
 [![SeleniumHQ](http://www.seleniumhq.org/images/big-logo.png)](http://www.seleniumhq.org/)
-
-
-
 
 Selenium is an umbrella project encapsulating a variety of tools and
 libraries enabling web browser automation. Selenium specifically
@@ -49,7 +46,7 @@ while buck's are named simply *BUCK*.
 
 Before building ensure that you have the
 [most recent `chromedriver` ](https://sites.google.com/a/chromium.org/chromedriver/downloads)
-available on your `$PATH`.  
+available on your `$PATH`. You may have to update this from time to time.
 
 To build Selenium, in the same directory as this file:
 
@@ -133,7 +130,7 @@ Note that all Selenium Java artefacts are **built with Java 8
 ### Optional Requirements
 
 * Python 2.6.x to 2.7 (without this, Python tests will be skipped)
-* Ruby 1.9.3
+* Ruby 2.0
 
 ### Internet Explorer Driver
 

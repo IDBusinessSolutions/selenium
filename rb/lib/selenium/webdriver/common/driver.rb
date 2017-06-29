@@ -41,38 +41,24 @@ module Selenium
         #
 
         def for(browser, opts = {})
-          listener = opts.delete(:listener)
-
-          bridge = case browser
-                   when :firefox, :ff
-                     if Remote::W3CCapabilities.w3c?(opts)
-                       Firefox::W3CBridge.new(opts)
-                     else
-                       Firefox::Bridge.new(opts)
-                     end
-                   when :remote
-                     if Remote::W3CCapabilities.w3c?(opts)
-                       Remote::W3CBridge.new(opts)
-                     else
-                       Remote::Bridge.new(opts)
-                     end
-                   when :ie, :internet_explorer
-                     IE::Bridge.new(opts)
-                   when :chrome
-                     Chrome::Bridge.new(opts)
-                   when :edge
-                     Edge::Bridge.new(opts)
-                   when :phantomjs
-                     PhantomJS::Bridge.new(opts)
-                   when :safari
-                     Safari::Bridge.new(opts)
-                   else
-                     raise ArgumentError, "unknown driver: #{browser.inspect}"
-                   end
-
-          bridge = Support::EventFiringBridge.new(bridge, listener) if listener
-
-          new(bridge)
+          case browser
+          when :chrome
+            Chrome::Driver.new(opts)
+          when :internet_explorer, :ie
+            IE::Driver.new(opts)
+          when :safari
+            Safari::Driver.new(opts)
+          when :phantomjs
+            PhantomJS::Driver.new(opts)
+          when :firefox, :ff
+            Firefox::Driver.new(opts)
+          when :edge
+            Edge::Driver.new(opts)
+          when :remote
+            Remote::Driver.new(opts)
+          else
+            raise ArgumentError, "unknown driver: #{browser.inspect}"
+          end
         end
       end
 
@@ -83,12 +69,9 @@ module Selenium
       # @api private
       #
 
-      def initialize(bridge)
+      def initialize(bridge, listener: nil)
         @bridge = bridge
-
-        # TODO: refactor this away
-        return if bridge.driver_extensions.empty?
-        extend(*bridge.driver_extensions)
+        @bridge = Support::EventFiringBridge.new(bridge, listener) if listener
       end
 
       def inspect
@@ -119,7 +102,24 @@ module Selenium
       #
 
       def manage
-        @manage ||= WebDriver::Options.new(bridge)
+        bridge.options
+      end
+
+      #
+      # @return [ActionBuilder, W3CActionBuilder]
+      # @see ActionBuilder, W3CActionBuilder
+      #
+
+      def action
+        bridge.action
+      end
+
+      def mouse
+        bridge.mouse
+      end
+
+      def keyboard
+        bridge.keyboard
       end
 
       #
@@ -202,7 +202,7 @@ module Selenium
       #
       # @param [String] script
       #   JavaScript source to execute
-      # @param [WebDriver::Element,Integer, Float, Boolean, NilClass, String, Array] *args
+      # @param [WebDriver::Element, Integer, Float, Boolean, NilClass, String, Array] args
       #   Arguments will be available in the given script in the 'arguments' pseudo-array.
       #
       # @return [WebDriver::Element,Integer,Float,Boolean,NilClass,String,Array]
@@ -222,7 +222,7 @@ module Selenium
       #
       # @param [String] script
       #   JavaScript source to execute
-      # @param [WebDriver::Element,Integer, Float, Boolean, NilClass, String, Array] *args
+      # @param [WebDriver::Element,Integer, Float, Boolean, NilClass, String, Array] args
       #   Arguments to the script. May be empty.
       #
       # @return [WebDriver::Element,Integer,Float,Boolean,NilClass,String,Array]
@@ -255,7 +255,7 @@ module Selenium
       # Get the first element matching the given selector. If given a
       # String or Symbol, it will be used as the id of the element.
       #
-      # @param  [String,Hash] id or selector
+      # @param  [String,Hash] sel id or selector
       # @return [WebDriver::Element]
       #
       # Examples:

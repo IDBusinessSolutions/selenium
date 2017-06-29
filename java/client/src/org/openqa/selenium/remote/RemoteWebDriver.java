@@ -17,6 +17,9 @@
 
 package org.openqa.selenium.remote;
 
+import static org.openqa.selenium.remote.CapabilityType.LOGGING_PREFS;
+import static org.openqa.selenium.remote.CapabilityType.SUPPORTS_JAVASCRIPT;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -42,8 +45,10 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.HasInputDevices;
+import org.openqa.selenium.interactions.Interactive;
 import org.openqa.selenium.interactions.Keyboard;
 import org.openqa.selenium.interactions.Mouse;
+import org.openqa.selenium.interactions.Sequence;
 import org.openqa.selenium.internal.FindsByClassName;
 import org.openqa.selenium.internal.FindsByCssSelector;
 import org.openqa.selenium.internal.FindsById;
@@ -63,6 +68,7 @@ import org.openqa.selenium.security.Credentials;
 import org.openqa.selenium.security.UserAndPassword;
 
 import java.net.URL;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -75,9 +81,9 @@ import java.util.logging.Logger;
 
 @Augmentable
 public class RemoteWebDriver implements WebDriver, JavascriptExecutor,
-    FindsById, FindsByClassName, FindsByLinkText, FindsByName,
-    FindsByCssSelector, FindsByTagName, FindsByXPath,
-    HasInputDevices, HasCapabilities, TakesScreenshot {
+      FindsById, FindsByClassName, FindsByLinkText, FindsByName,
+      FindsByCssSelector, FindsByTagName, FindsByXPath,
+      HasInputDevices, HasCapabilities, Interactive, TakesScreenshot {
 
   // TODO(dawagner): This static logger should be unified with the per-instance localLogs
   private static final Logger logger = Logger.getLogger(RemoteWebDriver.class.getName());
@@ -99,24 +105,27 @@ public class RemoteWebDriver implements WebDriver, JavascriptExecutor,
 
   // For cglib
   protected RemoteWebDriver() {
-    init(new DesiredCapabilities(), null);
+    init(new DesiredCapabilities());
   }
 
-  public RemoteWebDriver(CommandExecutor executor, Capabilities desiredCapabilities,
-      Capabilities requiredCapabilities) {
+  public RemoteWebDriver(Capabilities desiredCapabilities) {
+    this(new HttpCommandExecutor(null), desiredCapabilities);
+  }
+
+  public RemoteWebDriver(CommandExecutor executor, Capabilities desiredCapabilities) {
     this.executor = executor;
 
-    init(desiredCapabilities, requiredCapabilities);
+    init(desiredCapabilities);
 
     if (executor instanceof NeedsLocalLogs) {
       ((NeedsLocalLogs)executor).setLocalLogs(localLogs);
     }
 
     try {
-      startClient(desiredCapabilities, requiredCapabilities);
+      startClient(desiredCapabilities);
     } catch (RuntimeException e) {
       try {
-        stopClient(desiredCapabilities, requiredCapabilities);
+        stopClient(desiredCapabilities);
       } catch (Exception ignored) {
         // Ignore the clean-up exception. We'll propagate the original failure.
       }
@@ -125,7 +134,7 @@ public class RemoteWebDriver implements WebDriver, JavascriptExecutor,
     }
 
     try {
-      startSession(desiredCapabilities, requiredCapabilities);
+      startSession(desiredCapabilities);
     } catch (RuntimeException e) {
       try {
         quit();
@@ -137,25 +146,37 @@ public class RemoteWebDriver implements WebDriver, JavascriptExecutor,
     }
   }
 
-  public RemoteWebDriver(CommandExecutor executor, Capabilities desiredCapabilities) {
-    this(executor, desiredCapabilities, null);
+  /**
+   * @deprecated Use {@link RemoteWebDriver(CommandExecutor, Capabilities)}.
+   */
+  @Deprecated
+  public RemoteWebDriver(
+      CommandExecutor executor,
+      Capabilities desiredCapabilities,
+      Capabilities requiredCapabilities) {
+    this(executor, desiredCapabilities.merge(requiredCapabilities));
   }
 
-  public RemoteWebDriver(Capabilities desiredCapabilities) {
-    this((URL) null, desiredCapabilities);
-  }
-
-  public RemoteWebDriver(URL remoteAddress, Capabilities desiredCapabilities,
+  /**
+   * @deprecated Use {@link RemoteWebDriver(CommandExecutor, Capabilities)}, creating a new
+   *   {@link HttpCommandExecutor}.
+   */
+  @Deprecated
+  public RemoteWebDriver(
+      URL remoteAddress,
+      Capabilities desiredCapabilities,
       Capabilities requiredCapabilities) {
     this(new HttpCommandExecutor(remoteAddress), desiredCapabilities,
         requiredCapabilities);
   }
 
   public RemoteWebDriver(URL remoteAddress, Capabilities desiredCapabilities) {
-    this(new HttpCommandExecutor(remoteAddress), desiredCapabilities, null);
+    this(new HttpCommandExecutor(remoteAddress), desiredCapabilities);
   }
 
-  private void init(Capabilities desiredCapabilities, Capabilities requiredCapabilities) {
+  private void init(Capabilities capabilities) {
+    capabilities = capabilities == null ? new DesiredCapabilities() : capabilities;
+
     logger.addHandler(LoggingHandler.getInstance());
 
     converter = new JsonToWebElementConverter(this);
@@ -165,28 +186,16 @@ public class RemoteWebDriver implements WebDriver, JavascriptExecutor,
 
     ImmutableSet.Builder<String> builder = new ImmutableSet.Builder<>();
 
-    boolean isProfilingEnabled = desiredCapabilities != null &&
-        desiredCapabilities.is(CapabilityType.ENABLE_PROFILING_CAPABILITY);
-    if (requiredCapabilities != null && requiredCapabilities.getCapability(
-        CapabilityType.ENABLE_PROFILING_CAPABILITY) != null) {
-      isProfilingEnabled = requiredCapabilities.is(CapabilityType.ENABLE_PROFILING_CAPABILITY);
-    }
+    boolean isProfilingEnabled = capabilities.is(CapabilityType.ENABLE_PROFILING_CAPABILITY);
     if (isProfilingEnabled) {
       builder.add(LogType.PROFILER);
     }
 
     LoggingPreferences mergedLoggingPrefs = new LoggingPreferences();
-    if (desiredCapabilities != null) {
-      mergedLoggingPrefs.addPreferences((LoggingPreferences)desiredCapabilities.getCapability(
-          CapabilityType.LOGGING_PREFS));
-    }
-    if (requiredCapabilities != null) {
-      mergedLoggingPrefs.addPreferences((LoggingPreferences)requiredCapabilities.getCapability(
-          CapabilityType.LOGGING_PREFS));
-    }
-    if ((mergedLoggingPrefs.getEnabledLogTypes().contains(LogType.CLIENT) &&
-        mergedLoggingPrefs.getLevel(LogType.CLIENT) != Level.OFF) ||
-        !mergedLoggingPrefs.getEnabledLogTypes().contains(LogType.CLIENT)) {
+    mergedLoggingPrefs.addPreferences((LoggingPreferences) capabilities.getCapability(LOGGING_PREFS));
+
+    if (!mergedLoggingPrefs.getEnabledLogTypes().contains(LogType.CLIENT) ||
+        mergedLoggingPrefs.getLevel(LogType.CLIENT) != Level.OFF) {
       builder.add(LogType.CLIENT);
     }
 
@@ -264,6 +273,17 @@ public class RemoteWebDriver implements WebDriver, JavascriptExecutor,
     }
     returnedCapabilities.setPlatform(platform);
 
+    if (rawCapabilities.containsKey(SUPPORTS_JAVASCRIPT)) {
+      Object raw = rawCapabilities.get(SUPPORTS_JAVASCRIPT);
+      if (raw instanceof String) {
+        returnedCapabilities.setCapability(SUPPORTS_JAVASCRIPT, Boolean.parseBoolean((String) raw));
+      } else if (raw instanceof Boolean) {
+        returnedCapabilities.setCapability(SUPPORTS_JAVASCRIPT, ((Boolean) raw).booleanValue());
+      }
+    } else {
+      returnedCapabilities.setCapability(SUPPORTS_JAVASCRIPT, true);
+    }
+
     capabilities = returnedCapabilities;
     sessionId = new SessionId(response.getSessionId());
   }
@@ -279,8 +299,19 @@ public class RemoteWebDriver implements WebDriver, JavascriptExecutor,
    * Method called before {@link #startSession(Capabilities) starting a new session}. The default
    * implementation is a no-op, but subtypes should override this method to define custom behavior.
    */
-  protected void startClient(Capabilities desiredCapabilities, Capabilities requiredCapabilities) {
+  protected void startClient(Capabilities desiredCapabilities) {
     startClient();
+  }
+
+  /**
+   * Method called before {@link #startSession(Capabilities) starting a new session}. The default
+   * implementation is a no-op, but subtypes should override this method to define custom behavior.
+   *
+   * @deprecated Use {@link #startClient(Capabilities)}
+   */
+  @Deprecated
+  protected void startClient(Capabilities desiredCapabilities, Capabilities requiredCapabilities) {
+    startClient(desiredCapabilities.merge(requiredCapabilities));
   }
 
   /**
@@ -294,8 +325,19 @@ public class RemoteWebDriver implements WebDriver, JavascriptExecutor,
    * Method called after executing a {@link #quit()} command. The default implementation is a no-op,
    * but subtypes should override this method to define custom behavior.
    */
-  protected void stopClient(Capabilities desiredCapabilities, Capabilities requiredCapabilities) {
+  protected void stopClient(Capabilities desiredCapbilities) {
     stopClient();
+  }
+
+  /**
+   * Method called after executing a {@link #quit()} command. The default implementation is a no-op,
+   * but subtypes should override this method to define custom behavior.
+   *
+   * @deprecated Use {@link #stopClient(Capabilities)}
+   */
+  @Deprecated
+  protected void stopClient(Capabilities desiredCapabilities, Capabilities requiredCapabilities) {
+    stopClient(desiredCapabilities.merge(requiredCapabilities));
   }
 
   public ErrorHandler getErrorHandler() {
@@ -380,7 +422,9 @@ public class RemoteWebDriver implements WebDriver, JavascriptExecutor,
 
   protected void setFoundBy(SearchContext context, WebElement element, String by, String using) {
     if (element instanceof RemoteWebElement) {
-      ((RemoteWebElement) element).setFoundBy(context, by, using);
+      RemoteWebElement remoteElement = (RemoteWebElement) element;
+      remoteElement.setFoundBy(context, by, using);
+      remoteElement.setFileDetector(getFileDetector());
     }
   }
 
@@ -403,14 +447,6 @@ public class RemoteWebDriver implements WebDriver, JavascriptExecutor,
       setFoundBy(this, element, by, using);
     }
     return allElements;
-  }
-
-  static String cssEscape(String using) {
-    using = using.replaceAll("(['\"\\\\#.:;,!?+<>=~*^$|%&@`{}\\-\\/\\[\\]\\(\\)])", "\\\\$1");
-    if (using.length() > 0 && Character.isDigit(using.charAt(0))) {
-      using = "\\" + Integer.toString(30 + Integer.parseInt(using.substring(0,1))) + " " + using.substring(1);
-    }
-    return using;
   }
 
   public WebElement findElementById(String using) {
@@ -519,7 +555,7 @@ public class RemoteWebDriver implements WebDriver, JavascriptExecutor,
   }
 
   public Object executeScript(String script, Object... args) {
-    if (!capabilities.isJavascriptEnabled()) {
+    if (!capabilities.is(SUPPORTS_JAVASCRIPT)) {
       throw new UnsupportedOperationException(
           "You must be using an underlying instance of WebDriver that supports executing javascript");
     }
@@ -556,7 +592,7 @@ public class RemoteWebDriver implements WebDriver, JavascriptExecutor,
   }
 
   private boolean isJavascriptEnabled() {
-    return capabilities.isJavascriptEnabled();
+    return capabilities.is(SUPPORTS_JAVASCRIPT);
   }
 
   public TargetLocator switchTo() {
@@ -655,11 +691,21 @@ public class RemoteWebDriver implements WebDriver, JavascriptExecutor,
   }
 
   protected Response execute(String command) {
-    return execute(command, ImmutableMap.<String, Object>of());
+    return execute(command, ImmutableMap.of());
   }
 
   protected ExecuteMethod getExecuteMethod() {
     return executeMethod;
+  }
+
+  @Override
+  public void perform(Collection<Sequence> actions) {
+    execute(DriverCommand.ACTIONS, ImmutableMap.of("actions", actions));
+  }
+
+  @Override
+  public void resetInputState() {
+    execute(DriverCommand.CLEAR_ACTIONS_STATE);
   }
 
   public Keyboard getKeyboard() {
@@ -820,22 +866,19 @@ public class RemoteWebDriver implements WebDriver, JavascriptExecutor,
 
       public Timeouts implicitlyWait(long time, TimeUnit unit) {
         execute(DriverCommand.SET_TIMEOUT, ImmutableMap.of(
-            "type", "implicit",
-            "ms", TimeUnit.MILLISECONDS.convert(time, unit)));
+            "implicit", TimeUnit.MILLISECONDS.convert(time, unit)));
         return this;
       }
 
       public Timeouts setScriptTimeout(long time, TimeUnit unit) {
         execute(DriverCommand.SET_TIMEOUT, ImmutableMap.of(
-            "type", "script",
-            "ms", TimeUnit.MILLISECONDS.convert(time, unit)));
+            "script", TimeUnit.MILLISECONDS.convert(time, unit)));
         return this;
       }
 
       public Timeouts pageLoadTimeout(long time, TimeUnit unit) {
         execute(DriverCommand.SET_TIMEOUT, ImmutableMap.of(
-            "type", "page load",
-            "ms", TimeUnit.MILLISECONDS.convert(time, unit)));
+            "pageLoad", TimeUnit.MILLISECONDS.convert(time, unit)));
         return this;
       }
     } // timeouts class.
@@ -865,8 +908,8 @@ public class RemoteWebDriver implements WebDriver, JavascriptExecutor,
         return new Dimension(width, height);
       }
 
-      @SuppressWarnings({"unchecked"})
       Map<String, Object> rawPoint;
+      @SuppressWarnings("unchecked")
       public Point getPosition() {
         Response response = execute(DriverCommand.GET_CURRENT_WINDOW_POSITION,
                                     ImmutableMap.of("windowHandle", "current"));

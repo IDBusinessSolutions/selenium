@@ -17,17 +17,6 @@
 
 package org.openqa.selenium.logging;
 
-import org.junit.After;
-import org.junit.Test;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.remote.DesiredCapabilities;
-import org.openqa.selenium.testing.Ignore;
-import org.openqa.selenium.testing.JUnit4TestBase;
-import org.openqa.selenium.testing.drivers.WebDriverBuilder;
-import static org.openqa.selenium.testing.TestUtilities.isOldChromedriver;
-
-import java.util.Set;
-
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
@@ -38,8 +27,22 @@ import static org.openqa.selenium.testing.Driver.IE;
 import static org.openqa.selenium.testing.Driver.MARIONETTE;
 import static org.openqa.selenium.testing.Driver.PHANTOMJS;
 import static org.openqa.selenium.testing.Driver.SAFARI;
+import static org.openqa.selenium.testing.TestUtilities.isOldChromedriver;
 
-@Ignore({HTMLUNIT, IE, PHANTOMJS, MARIONETTE})
+import org.junit.After;
+import org.junit.Test;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.remote.DesiredCapabilities;
+import org.openqa.selenium.testing.Ignore;
+import org.openqa.selenium.testing.JUnit4TestBase;
+import org.openqa.selenium.testing.drivers.WebDriverBuilder;
+
+import java.util.Set;
+
+@Ignore(HTMLUNIT)
+@Ignore(IE)
+@Ignore(PHANTOMJS)
+@Ignore(MARIONETTE)
 public class AvailableLogsTest extends JUnit4TestBase {
 
   private WebDriver localDriver;
@@ -96,7 +99,7 @@ public class AvailableLogsTest extends JUnit4TestBase {
   }
 
   @Test
-  @Ignore(value = {SAFARI}, reason = "Safari does not support profiler logs")
+  @Ignore(value = SAFARI, reason = "Safari does not support profiler logs")
   public void shouldBeAbleToEnableProfilerLog() {
     assumeFalse(isOldChromedriver(driver));
     DesiredCapabilities caps = new DesiredCapabilities();

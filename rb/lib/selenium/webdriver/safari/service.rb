@@ -26,19 +26,32 @@ module Selenium
 
       class Service < WebDriver::Service
         DEFAULT_PORT = 7050
+        @executable = '/usr/bin/safaridriver'.freeze
+        @missing_text = <<-ERROR.gsub(/\n +| {2,}/, ' ').freeze
+          Unable to find Apple's safaridriver which comes with Safari 10.
+          More info at https://webkit.org/blog/6900/webdriver-support-in-safari-10/
+        ERROR
+
+        def stop
+          stop_process
+        end
 
         private
 
-        def start_process
-          server_command = [@executable_path, "--port=#{@port}", *@extra_args]
-          @process       = ChildProcess.build(*server_command)
-
-          @process.io.inherit! if $DEBUG
-          @process.start
+        def binary_path(path)
+          path = self.class.executable if path.nil?
+          raise Error::WebDriverError, self.class.missing_text unless path
+          Platform.assert_executable path
+          path
         end
 
-        def stop_server
-          connect_to_server { |http| http.head('/shutdown') }
+        def start_process
+          server_command = [@executable_path, "--port=#{@port}", *@extra_args]
+          @process = ChildProcess.build(*server_command)
+          WebDriver.logger.debug("Executing Process #{server_command}")
+
+          @process.io.stdout = @process.io.stderr = WebDriver.logger.io
+          @process.start
         end
 
         def cannot_connect_error_text

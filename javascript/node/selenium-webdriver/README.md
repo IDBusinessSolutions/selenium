@@ -136,16 +136,16 @@ will also have "best effort" support. Releases older than the latest LTS,
 _semver-major_ releases, and all unstable release branches (e.g. "v.Next")
 are considered strictly unsupported.
 
-For example, suppose the current LTS and stable releases are v4.2.4 and v5.4.1,
+For example, suppose the current LTS and stable releases are v6.9.5 and v7.5.0,
 respectively. Then a Selenium release would have the following support levels:
 
 | Version | Support       |
 | ------- | ------------- |
-| <= 4.1  | _unsupported_ |
-| 4.2     | supported     |
-| 5.0-3   | best effort   |
-| 5.4     | supported     |
-| >= 5.5  | best effort   |
+| <= 6.8  | _unsupported_ |
+| 6.9     | supported     |
+| 7.0-4   | best effort   |
+| 7.5     | supported     |
+| >= 7.5  | best effort   |
 | v.Next  | _unsupported_ |
 
 ### Support Level Definitions
@@ -168,11 +168,11 @@ months, the support window for selenium-webdriver will be roughly:
 
 | Date      | LTS  | Stable |
 | --------- | ---: | -----: |
-| (current) |  4.2 |    5.0 |
-| 2016-04   |  4.2 |    6.0 |
-| 2016-10   |  6.0 |    7.0 |
+| (current) |  6.9 |    7.5 |
 | 2017-04   |  6.0 |    8.0 |
 | 2017-10   |  8.0 |    9.0 |
+| 2018-04   |  8.0 |   10.0 |
+| 2018-10   | 10.0 |   11.0 |
 
 ## Issues
 
@@ -193,7 +193,7 @@ the issue tracker
 - __Do not__ post empty "I see this too" or "Any updates?" comments. These
     provide no additional information and clutter the log.
 - __Do not__ report regressions on closed bugs as they are not actively
-    monitored for upates (especially bugs that are >6 months old). Please open a
+    monitored for updates (especially bugs that are >6 months old). Please open a
     new issue and reference the original bug in your report.
 
 ## License
